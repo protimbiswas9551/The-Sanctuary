@@ -1,18 +1,49 @@
-import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Square, ArrowUp, BrainCircuit } from 'lucide-react';
+import { Wind, RotateCcw, Home } from 'lucide-react';
+
+type BreathingPhase = 'Inhale' | 'Hold' | 'Exhale' | 'Rest';
 
 export default function VoiceInterface() {
   const navigate = useNavigate();
-  const [reflection, setReflection] = useState('');
+  const [isActive, setIsActive] = useState(false);
+  const [phase, setPhase] = useState<BreathingPhase>('Inhale');
+  const [timeLeft, setTimeLeft] = useState(60);
 
-  const handleSendReflection = () => {
-    if (!reflection.trim()) return;
-    // For now, just clear and navigate back to chat
-    setReflection('');
-    navigate('/reflect');
-  };
+  useEffect(() => {
+    let phaseTimer: NodeJS.Timeout;
+    let countdown: NodeJS.Timeout;
+
+    if (isActive && timeLeft > 0) {
+      countdown = setInterval(() => {
+        setTimeLeft(t => t - 1);
+      }, 1000);
+
+      const runPhase = () => {
+        setPhase('Inhale');
+        phaseTimer = setTimeout(() => {
+          setPhase('Hold');
+          phaseTimer = setTimeout(() => {
+            setPhase('Exhale');
+            phaseTimer = setTimeout(() => {
+              setPhase('Rest');
+              phaseTimer = setTimeout(runPhase, 4000);
+            }, 4000);
+          }, 4000);
+        }, 4000);
+      };
+
+      runPhase();
+    } else if (timeLeft === 0) {
+      setIsActive(false);
+    }
+
+    return () => {
+      clearTimeout(phaseTimer);
+      clearInterval(countdown);
+    };
+  }, [isActive, timeLeft === 0]);
 
   return (
     <main className="relative h-screen w-full flex flex-col items-center justify-center botanical-glow overflow-hidden pt-20">
@@ -23,103 +54,89 @@ export default function VoiceInterface() {
       </div>
 
       {/* Centered Interaction Group */}
-      <div className="relative z-10 flex flex-col items-center justify-center space-y-12 max-w-3xl w-full px-6">
-        <div className="flex flex-col items-center justify-center space-y-8 text-center">
-          <div className="relative group">
-            {/* The Core Glowing Orb */}
-            <motion.div 
-              animate={{ 
-                scale: [1, 1.05, 1],
-                boxShadow: [
-                  "0 0 80px 20px rgba(115, 219, 154, 0.1)",
-                  "0 0 100px 30px rgba(115, 219, 154, 0.2)",
-                  "0 0 80px 20px rgba(115, 219, 154, 0.1)"
-                ]
-              }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="w-52 h-52 md:w-64 md:h-64 rounded-full bg-emerald-900/20 flex items-center justify-center relative overflow-hidden border border-primary/20"
-            >
-              {/* Texture Overlay */}
-              <div className="absolute inset-0 opacity-30 mix-blend-overlay">
-                <img 
-                  src="https://images.unsplash.com/photo-1516528387618-afa90b13e000?q=80&w=2560&auto=format&fit=crop" 
-                  alt="Leaf texture" 
-                  className="w-full h-full object-cover scale-150 rotate-12"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <div className="w-20 h-20 rounded-full bg-primary blur-3xl opacity-40" />
-              <div className="absolute inset-2 border border-primary/10 rounded-full" />
-            </motion.div>
-          </div>
-
-          <div className="space-y-3">
-            <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">Listening...</h1>
-            <p className="text-on-surface-variant text-base leading-relaxed font-light">
-              I'm here, tell me what's on your mind.
-            </p>
-          </div>
-
-          <motion.button 
-            onClick={() => navigate('/reflect')}
-            whileTap={{ scale: 0.95 }}
-            className="group flex flex-col items-center gap-2"
+      <div className="relative z-10 flex flex-col items-center justify-center space-y-12 max-w-3xl w-full px-6 text-center">
+        <div className="space-y-4">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-center gap-3 text-primary"
           >
-            <div className="w-14 h-14 rounded-full bg-surface-container-highest border border-outline-variant/30 flex items-center justify-center group-hover:bg-red-900/20 group-hover:border-red-500/50 transition-all duration-500">
-              <Square className="w-6 h-6 text-on-surface group-hover:text-red-400" />
-            </div>
-            <span className="text-[10px] uppercase tracking-widest font-bold text-secondary">Tap to end</span>
-          </motion.button>
+            <Wind className="w-6 h-6" />
+            <span className="text-[10px] uppercase tracking-[0.4em] font-bold">The Breathing Garden</span>
+          </motion.div>
+          <h1 className="text-4xl md:text-5xl font-serif italic text-on-surface">
+            {isActive ? phase : timeLeft === 0 ? "Peace Found" : "Moment of Stillness"}
+          </h1>
+          <p className="text-on-surface-variant max-w-md mx-auto leading-relaxed">
+            {isActive 
+              ? (phase === 'Inhale' ? "Fill your lungs with the morning mist..." : phase === 'Hold' ? "Hold the stillness within..." : phase === 'Exhale' ? "Release the weight of the day..." : "Prepare for the next breath...")
+              : timeLeft === 0 ? "You've tended to your inner garden. Carry this calm with you." : "A quick reset to center your focus. Let the garden breathe with you."}
+          </p>
         </div>
 
-        {/* Integrated Input Area */}
-        <div className="w-full max-w-2xl space-y-4">
-          <div className="relative flex items-center bg-surface-container-low/40 backdrop-blur-xl border border-outline-variant/20 rounded-full p-2 pl-6 shadow-2xl focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20">
-            <input 
-              value={reflection}
-              onChange={(e) => setReflection(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendReflection()}
-              className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/50 text-base" 
-              placeholder="Type your reflection..." 
-              type="text"
-            />
-            <button 
-              onClick={handleSendReflection}
-              className="ml-2 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center hover:scale-105 transition-all"
+        <div className="relative group">
+          {/* The Core Glowing Orb */}
+          <motion.div 
+            animate={{ 
+              scale: isActive ? (phase === 'Inhale' ? 1.3 : phase === 'Exhale' ? 0.8 : 1.1) : 1,
+              boxShadow: isActive ? [
+                "0 0 80px 20px rgba(115, 219, 154, 0.1)",
+                "0 0 120px 40px rgba(115, 219, 154, 0.3)",
+                "0 0 80px 20px rgba(115, 219, 154, 0.1)"
+              ] : "0 0 80px 20px rgba(115, 219, 154, 0.1)"
+            }}
+            transition={{ duration: 4, repeat: isActive ? 0 : Infinity, ease: "easeInOut" }}
+            className="w-64 h-64 md:w-80 md:h-80 rounded-full bg-emerald-900/20 flex items-center justify-center relative overflow-hidden border border-primary/20"
+          >
+            {/* Texture Overlay */}
+            <div className="absolute inset-0 opacity-30 mix-blend-overlay">
+              <img 
+                src="https://images.unsplash.com/photo-1516528387618-afa90b13e000?q=80&w=2560&auto=format&fit=crop" 
+                alt="Leaf texture" 
+                className="w-full h-full object-cover scale-150 rotate-12"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className={`w-24 h-24 rounded-full bg-primary blur-3xl transition-opacity duration-1000 ${isActive ? 'opacity-60' : 'opacity-40'}`} />
+            <div className="absolute inset-4 border border-primary/10 rounded-full" />
+            
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-4xl font-light text-on-surface tabular-nums">
+                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+              </span>
+            </div>
+          </motion.div>
+        </div>
+
+        <div className="flex gap-4">
+          {timeLeft === 0 ? (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setTimeLeft(60)}
+              className="flex items-center gap-2 px-8 py-4 rounded-full bg-primary text-on-primary font-bold shadow-xl shadow-primary/20"
             >
-              <ArrowUp className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="flex justify-between items-center text-[10px] uppercase tracking-[0.2em] font-bold text-on-surface-variant/40 px-4">
-            <span>Presence Engine Alpha</span>
-            <div className="flex gap-4">
-              <button className="hover:text-primary transition-colors">Voice mode</button>
-              <button className="hover:text-primary transition-colors">Transcription</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Help Widget */}
-      <div className="fixed bottom-12 right-8 z-20 max-w-[280px] hidden lg:block">
-        <div className="bg-surface-container-low/60 backdrop-blur-md p-6 rounded-xl border border-outline-variant/10 shadow-lg">
-          <div className="flex items-start gap-4">
-            <div className="bg-tertiary-container p-2 rounded-lg">
-              <BrainCircuit className="w-5 h-5 text-tertiary" />
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-on-surface font-semibold text-sm">Feeling overwhelmed?</h4>
-              <p className="text-on-surface-variant text-xs leading-snug">You don't have to carry this alone. Help is available 24/7.</p>
-              <a 
-                href="https://www.crisistextline.org/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-block text-primary text-xs font-bold uppercase tracking-wider mt-2 border-b border-primary/30 hover:border-primary transition-all"
-              >
-                Talk to a professional
-              </a>
-            </div>
-          </div>
+              <RotateCcw className="w-5 h-5" />
+              Begin Again
+            </motion.button>
+          ) : (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsActive(!isActive)}
+              className={`px-12 py-4 rounded-full font-bold transition-all ${isActive ? 'bg-surface-container-highest text-on-surface' : 'bg-primary text-on-primary shadow-xl shadow-primary/20'}`}
+            >
+              {isActive ? 'Pause' : 'Start 1m Session'}
+            </motion.button>
+          )}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/')}
+            className="p-4 rounded-full bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-primary transition-colors"
+          >
+            <Home className="w-6 h-6" />
+          </motion.button>
         </div>
       </div>
     </main>
