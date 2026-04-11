@@ -194,11 +194,32 @@ export default function ChatInterface() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex gap-4 max-w-[90%] md:max-w-[85%]"
               >
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shadow-inner">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Flower className="w-5 h-5 text-primary opacity-40" />
+                  </motion.div>
                 </div>
-                <div className="bg-primary/5 border border-primary/10 px-6 py-4 rounded-3xl italic text-xs text-on-surface-variant">
-                  The Sanctuary Guide is reflecting on your words...
+                <div className="bg-primary/5 border border-primary/10 px-6 py-4 rounded-3xl flex items-center gap-1.5">
+                  {[0, 1, 2].map((dot) => (
+                    <motion.div
+                      key={dot}
+                      animate={{ 
+                        scale: [1, 1.5, 1],
+                        opacity: [0.3, 1, 0.3]
+                      }}
+                      transition={{ 
+                        duration: 1.5, 
+                        repeat: Infinity, 
+                        delay: dot * 0.2,
+                        ease: "easeInOut" 
+                      }}
+                      className="w-1.5 h-1.5 rounded-full bg-primary"
+                    />
+                  ))}
+                  <span className="ml-2 text-[10px] uppercase tracking-widest font-bold text-primary/40">Reflecting</span>
                 </div>
               </motion.div>
             )}
