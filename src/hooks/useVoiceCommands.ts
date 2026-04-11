@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface VoiceCommandsProps {
@@ -9,8 +9,22 @@ export function useVoiceCommands({ onSendMessage }: VoiceCommandsProps) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const navigate = useNavigate();
+  const recognitionRef = useRef<any>(null);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+  }, []);
 
   const startListening = useCallback(() => {
+    if (isListening) {
+      stopListening();
+      return;
+    }
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       console.error('Speech recognition not supported in this browser.');
@@ -18,6 +32,7 @@ export function useVoiceCommands({ onSendMessage }: VoiceCommandsProps) {
     }
 
     const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
@@ -34,16 +49,33 @@ export function useVoiceCommands({ onSendMessage }: VoiceCommandsProps) {
     };
 
     recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
+      if (event.error !== 'aborted') {
+        console.error('Speech recognition error:', event.error);
+      }
       setIsListening(false);
+      recognitionRef.current = null;
     };
 
     recognition.onend = () => {
       setIsListening(false);
+      recognitionRef.current = null;
     };
 
-    recognition.start();
-  }, [navigate, onSendMessage]);
+    try {
+      recognition.start();
+    } catch (err) {
+      console.error('Failed to start speech recognition:', err);
+      setIsListening(false);
+    }
+  }, [isListening, stopListening, navigate, onSendMessage]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
 
   const handleCommand = (text: string) => {
     // Navigation commands

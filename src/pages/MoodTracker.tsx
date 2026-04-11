@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Ear, Flower2, Brain, Tag, X, Filter, Sparkles, RefreshCw, Loader2, Mic, MicOff, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Ear, Flower2, Brain, Tag, X, Filter, Sparkles, RefreshCw, Loader2, Mic, MicOff, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wind } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
+import BreathingExercise from '../components/BreathingExercise';
 import { 
   format, 
   startOfMonth, 
@@ -48,6 +49,7 @@ export default function MoodTracker() {
   const [isLoadingPrompts, setIsLoadingPrompts] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showBreathing, setShowBreathing] = useState(false);
 
   const { isListening, startListening } = useVoiceCommands({
     onSendMessage: (text) => {
@@ -463,6 +465,12 @@ export default function MoodTracker() {
 
       {/* Side Navigation/Actions */}
       <section className="lg:col-span-4 flex flex-col gap-6 relative z-10">
+        <AnimatePresence>
+          {showBreathing && (
+            <BreathingExercise onClose={() => setShowBreathing(false)} />
+          )}
+        </AnimatePresence>
+
         {/* Botanical Calendar */}
         <div className="glass-panel rounded-3xl p-6 border border-outline-variant/10">
           <div className="flex items-center justify-between mb-6">
@@ -578,6 +586,27 @@ export default function MoodTracker() {
             </div>
           </motion.div>
         ))}
+
+        <div className="mt-8 p-6 rounded-3xl bg-surface-container-low border border-outline-variant/5">
+          <div className="relative w-16 h-16 mb-4 flex items-center justify-center mx-auto">
+            <motion.div 
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute inset-0 bg-primary/20 rounded-full" 
+            />
+            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-on-primary">
+              <Wind className="w-5 h-5" />
+            </div>
+          </div>
+          <h3 className="text-on-surface font-semibold mb-1 text-center">Need a Breath?</h3>
+          <p className="text-xs text-on-surface-variant mb-6 leading-relaxed text-center">A quick reset to center your focus.</p>
+          <button 
+            onClick={() => setShowBreathing(true)}
+            className="w-full py-3 rounded-xl bg-surface-container-highest text-on-surface text-xs font-bold uppercase tracking-widest hover:bg-surface-bright transition-colors"
+          >
+            Start Exercise
+          </button>
+        </div>
 
         <div className="mt-8 p-6 rounded-3xl bg-surface-container-low border border-outline-variant/5">
           <h5 className="text-on-surface font-medium mb-4">Garden Progress</h5>
