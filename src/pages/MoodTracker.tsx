@@ -1,33 +1,96 @@
-import React, { useState } from 'react';
-import { motion } from 'motion/react';
-import { Ear, Flower2, Brain, Bell, Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Ear, Flower2, Brain, Tag, X, Filter } from 'lucide-react';
+
+interface JournalEntry {
+  id: number;
+  text: string;
+  date: string;
+  mood: string;
+  tags: string[];
+  reactions?: { [emoji: string]: number };
+}
+
+const REACTION_EMOJIS = ['❤️', '🫂', '🌱', '✨', '🙏'];
+const PREDEFINED_TAGS = ['work', 'relationships', 'self-care', 'health', 'growth', 'other'];
+const MOODS = [
+  { label: 'Peaceful', emoji: '🌿' },
+  { label: 'Anxious', emoji: '☁️' },
+  { label: 'Grateful', emoji: '✨' },
+  { label: 'Sad', emoji: '💧' },
+  { label: 'Energized', emoji: '🔥' },
+  { label: 'Reflective', emoji: '🌙' }
+];
 
 export default function MoodTracker() {
   const [entry, setEntry] = useState('');
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [savedEntries, setSavedEntries] = useState<JournalEntry[]>([]);
+  const [filterTag, setFilterTag] = useState<string | null>(null);
+
+  // Load entries on mount
+  useEffect(() => {
+    const entries = JSON.parse(localStorage.getItem('sanctuary_entries') || '[]');
+    setSavedEntries(entries);
+  }, []);
 
   const handleRootThought = () => {
-    if (!entry.trim()) return;
+    if (!entry.trim() || !selectedMood) return;
     
     setIsSaving(true);
     
-    // Simulate saving to a "garden" (localStorage)
-    const savedEntries = JSON.parse(localStorage.getItem('sanctuary_entries') || '[]');
-    const newEntry = {
+    const newEntry: JournalEntry = {
       id: Date.now(),
       text: entry,
       date: new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }),
-      mood: 'Reflective'
+      mood: selectedMood,
+      tags: selectedTags
     };
     
-    localStorage.setItem('sanctuary_entries', JSON.stringify([newEntry, ...savedEntries]));
+    const updatedEntries = [newEntry, ...savedEntries];
+    localStorage.setItem('sanctuary_entries', JSON.stringify(updatedEntries));
+    setSavedEntries(updatedEntries);
     
     setTimeout(() => {
       setEntry('');
+      setSelectedMood(null);
+      setSelectedTags([]);
       setIsSaving(false);
       alert('Your thought has been rooted in the garden.');
     }, 800);
   };
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const handleReaction = (entryId: number, emoji: string) => {
+    const updatedEntries = savedEntries.map(entry => {
+      if (entry.id === entryId) {
+        const currentReactions = entry.reactions || {};
+        const newCount = (currentReactions[emoji] || 0) + 1;
+        return {
+          ...entry,
+          reactions: {
+            ...currentReactions,
+            [emoji]: newCount
+          }
+        };
+      }
+      return entry;
+    });
+    
+    setSavedEntries(updatedEntries);
+    localStorage.setItem('sanctuary_entries', JSON.stringify(updatedEntries));
+  };
+
+  const filteredEntries = filterTag 
+    ? savedEntries.filter(e => e.tags?.includes(filterTag))
+    : savedEntries;
 
   return (
     <div className="relative min-h-screen pt-32 pb-32 px-6 md:px-12 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
@@ -71,16 +134,71 @@ export default function MoodTracker() {
             <textarea 
               value={entry}
               onChange={(e) => setEntry(e.target.value)}
-              className="w-full bg-transparent border-none focus:ring-0 text-xl md:text-2xl text-on-surface placeholder:text-on-surface-variant/30 min-h-[300px] resize-none custom-scrollbar"
+              className="w-full bg-transparent border-none focus:ring-0 text-xl md:text-2xl text-on-surface placeholder:text-on-surface-variant/30 min-h-[150px] resize-none custom-scrollbar"
               placeholder="Begin typing softly..."
             />
-            <div className="mt-8 flex justify-end">
+
+            {/* Mood Selection */}
+            <div className="mt-6">
+              <label className="flex items-center gap-2 text-on-surface-variant text-[10px] uppercase tracking-widest font-bold mb-3">
+                <Flower2 className="w-3 h-3" />
+                Current Weather
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {MOODS.map(mood => (
+                  <button
+                    key={mood.label}
+                    onClick={() => setSelectedMood(mood.label)}
+                    className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-all border ${
+                      selectedMood === mood.label
+                        ? 'bg-primary/20 border-primary scale-105'
+                        : 'bg-surface-container-highest/30 border-transparent hover:bg-surface-container-highest/60'
+                    }`}
+                  >
+                    <span className="text-2xl">{mood.emoji}</span>
+                    <span className={`text-[9px] font-bold uppercase tracking-tighter ${selectedMood === mood.label ? 'text-primary' : 'text-on-surface-variant'}`}>
+                      {mood.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tag Selection */}
+            <div className="mt-6">
+              <label className="flex items-center gap-2 text-on-surface-variant text-[10px] uppercase tracking-widest font-bold mb-3">
+                <Tag className="w-3 h-3" />
+                Tag this thought
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {PREDEFINED_TAGS.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                      selectedTags.includes(tag)
+                        ? 'bg-primary/20 border-primary text-primary'
+                        : 'bg-surface-container-highest/50 border-transparent text-on-surface-variant hover:bg-surface-container-highest'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-end items-center gap-4">
+              {!selectedMood && entry.trim() && (
+                <span className="text-[10px] text-red-400/60 uppercase tracking-widest font-bold animate-pulse">
+                  Please select a mood
+                </span>
+              )}
               <motion.button 
                 onClick={handleRootThought}
-                disabled={isSaving || !entry.trim()}
+                disabled={isSaving || !entry.trim() || !selectedMood}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className={`bg-gradient-to-r from-primary to-secondary text-on-primary px-8 py-3 rounded-full font-bold tracking-tight shadow-xl shadow-primary/10 transition-opacity ${isSaving || !entry.trim() ? 'opacity-50 cursor-not-allowed' : 'opacity-100'}`}
+                className={`bg-gradient-to-r from-primary to-secondary text-on-primary px-8 py-3 rounded-full font-bold tracking-tight shadow-xl shadow-primary/10 transition-opacity ${isSaving || !entry.trim() || !selectedMood ? 'opacity-50 cursor-not-allowed' : 'opacity-100'}`}
               >
                 {isSaving ? 'Rooting...' : 'Root this thought'}
               </motion.button>
@@ -117,27 +235,87 @@ export default function MoodTracker() {
 
         {/* Recent Reflections */}
         <div className="space-y-6">
-          <label className="text-secondary text-[10px] uppercase tracking-widest font-bold px-4">Recent Reflections</label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              { title: 'The weight of expectations', date: 'Yesterday', mood: 'Melancholy', color: 'secondary' },
-              { title: 'Finding joy in small things', date: '2 days ago', mood: 'Serene', color: 'primary' },
-            ].map((entry, i) => (
-              <motion.div 
-                key={i}
-                whileHover={{ y: -5 }}
-                className="glass-panel p-6 rounded-2xl border border-outline-variant/10 group cursor-pointer"
+          <div className="flex items-center justify-between px-4">
+            <label className="text-secondary text-[10px] uppercase tracking-widest font-bold">Recent Reflections</label>
+            <div className="flex items-center gap-2">
+              <Filter className="w-3 h-3 text-on-surface-variant" />
+              <select 
+                value={filterTag || ''} 
+                onChange={(e) => setFilterTag(e.target.value || null)}
+                className="bg-transparent border-none text-[10px] uppercase tracking-widest font-bold text-on-surface-variant focus:ring-0 cursor-pointer"
               >
-                <div className="flex justify-between items-start mb-4">
-                  <span className={`px-3 py-1 rounded-full bg-${entry.color}/10 text-${entry.color} text-[10px] font-bold uppercase tracking-wider`}>
-                    {entry.mood}
-                  </span>
-                  <span className="text-on-surface-variant text-[10px] uppercase tracking-widest">{entry.date}</span>
-                </div>
-                <h4 className="text-on-surface font-medium mb-2 group-hover:text-primary transition-colors">{entry.title}</h4>
-                <p className="text-on-surface-variant text-xs line-clamp-2">I realized today that most of my stress comes from things I cannot control. Letting go feels like...</p>
-              </motion.div>
-            ))}
+                <option value="">All Tags</option>
+                {PREDEFINED_TAGS.map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <AnimatePresence mode="popLayout">
+              {filteredEntries.length === 0 ? (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="col-span-full py-12 text-center glass-panel rounded-2xl"
+                >
+                  <p className="text-on-surface-variant italic text-sm">No reflections found in this corner of the garden.</p>
+                </motion.div>
+              ) : (
+                filteredEntries.map((entry) => (
+                  <motion.div 
+                    key={entry.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    whileHover={{ y: -5 }}
+                    className="glass-panel p-6 rounded-2xl border border-outline-variant/10 group cursor-pointer"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+                        {entry.mood}
+                      </span>
+                      <span className="text-on-surface-variant text-[10px] uppercase tracking-widest">{entry.date}</span>
+                    </div>
+                    <p className="text-on-surface text-sm mb-4 line-clamp-3 leading-relaxed">{entry.text}</p>
+                    
+                    <div className="flex flex-col gap-4 mt-auto">
+                      {entry.tags && entry.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {entry.tags.map(tag => (
+                            <span key={tag} className="text-[9px] text-secondary font-bold uppercase tracking-tighter bg-secondary/5 px-2 py-0.5 rounded">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 pt-2 border-t border-outline-variant/5">
+                        {REACTION_EMOJIS.map(emoji => (
+                          <button
+                            key={emoji}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleReaction(entry.id, emoji);
+                            }}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface-container-highest/20 hover:bg-surface-container-highest/50 transition-colors group/emoji"
+                          >
+                            <span className="text-xs group-hover/emoji:scale-125 transition-transform">{emoji}</span>
+                            {entry.reactions?.[emoji] && (
+                              <span className="text-[9px] font-bold text-on-surface-variant">
+                                {entry.reactions[emoji]}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </section>
