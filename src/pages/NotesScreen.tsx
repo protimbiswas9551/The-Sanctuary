@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Plus, Share2, Save, Bold, Italic, List, Quote, Image as ImageIcon, Edit3, Trash2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Search, Plus, Share2, Save, Bold, Italic, List, Quote, Image as ImageIcon, Edit3, Trash2, Eye, EyeOff } from 'lucide-react';
 
 interface Note {
   id: string;
@@ -17,6 +19,8 @@ export default function NotesScreen() {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isPreview, setIsPreview] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load notes from localStorage on mount
@@ -116,48 +120,54 @@ export default function NotesScreen() {
   };
 
   const formatText = (type: 'bold' | 'italic' | 'list' | 'quote' | 'image') => {
-    if (!textareaRef.current) return;
+    if (isPreview) setIsPreview(false);
+    const textarea = textareaRef.current;
+    if (!textarea) return;
 
-    const start = textareaRef.current.selectionStart;
-    const end = textareaRef.current.selectionEnd;
-    const selectedText = currentContent.substring(start, end);
-    let newText = '';
-    let cursorOffset = 0;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    
+    setCurrentContent(prev => {
+      const selectedText = prev.substring(start, end);
+      let textToInsert = '';
+      let cursorOffset = 0;
 
-    switch (type) {
-      case 'bold':
-        newText = `**${selectedText || 'bold text'}**`;
-        cursorOffset = selectedText ? 0 : 2;
-        break;
-      case 'italic':
-        newText = `*${selectedText || 'italic text'}*`;
-        cursorOffset = selectedText ? 0 : 1;
-        break;
-      case 'list':
-        newText = `\n- ${selectedText || 'list item'}`;
-        cursorOffset = selectedText ? 0 : 2;
-        break;
-      case 'quote':
-        newText = `\n> ${selectedText || 'quote'}`;
-        cursorOffset = selectedText ? 0 : 2;
-        break;
-      case 'image':
-        newText = `![${selectedText || 'alt text'}](https://)`;
-        cursorOffset = selectedText ? 10 : 2;
-        break;
-    }
-
-    const updatedContent = currentContent.substring(0, start) + newText + currentContent.substring(end);
-    setCurrentContent(updatedContent);
-
-    // Refocus and set cursor
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        const newCursorPos = start + newText.length - cursorOffset;
-        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      switch (type) {
+        case 'bold':
+          textToInsert = `**${selectedText || 'bold text'}**`;
+          cursorOffset = selectedText ? 0 : 2;
+          break;
+        case 'italic':
+          textToInsert = `*${selectedText || 'italic text'}*`;
+          cursorOffset = selectedText ? 0 : 1;
+          break;
+        case 'list':
+          const prefix = (start > 0 && prev[start - 1] !== '\n') ? '\n' : '';
+          textToInsert = `${prefix}- ${selectedText || 'list item'}`;
+          cursorOffset = 0;
+          break;
+        case 'quote':
+          const qPrefix = (start > 0 && prev[start - 1] !== '\n') ? '\n' : '';
+          textToInsert = `${qPrefix}> ${selectedText || 'quote'}`;
+          cursorOffset = 0;
+          break;
+        case 'image':
+          textToInsert = `![${selectedText || 'alt text'}](https://)`;
+          cursorOffset = selectedText ? 10 : 2;
+          break;
       }
-    }, 0);
+
+      const updated = prev.substring(0, start) + textToInsert + prev.substring(end);
+      
+      // Focus and set selection after state update
+      setTimeout(() => {
+        textarea.focus();
+        const newPos = start + textToInsert.length - cursorOffset;
+        textarea.setSelectionRange(newPos, newPos);
+      }, 0);
+
+      return updated;
+    });
   };
 
   const filteredNotes = notes.filter(note => 
@@ -264,19 +274,38 @@ export default function NotesScreen() {
                 key="clear-garden-action"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="pt-8 pb-4 flex justify-center"
+                className="pt-8 pb-4 flex flex-col items-center gap-2"
               >
-                <button 
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to clear your entire garden of reflections?')) {
-                      setNotes([]);
-                      createNewNote();
-                    }
-                  }}
-                  className="text-[9px] uppercase tracking-[0.2em] font-bold text-on-surface-variant/30 hover:text-red-400/50 transition-colors duration-300"
-                >
-                  Clear All Reflections
-                </button>
+                {!showClearConfirm ? (
+                  <button 
+                    onClick={() => setShowClearConfirm(true)}
+                    className="text-[9px] uppercase tracking-[0.2em] font-bold text-on-surface-variant/30 hover:text-red-400/50 transition-colors duration-300"
+                  >
+                    Clear All Reflections
+                  </button>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 bg-red-500/5 p-3 rounded-xl border border-red-500/10">
+                    <span className="text-[8px] uppercase tracking-widest font-bold text-red-400/80">Are you sure?</span>
+                    <div className="flex gap-4">
+                      <button 
+                        onClick={() => {
+                          setNotes([]);
+                          createNewNote();
+                          setShowClearConfirm(false);
+                        }}
+                        className="text-[9px] font-bold text-red-400 hover:text-red-300"
+                      >
+                        YES
+                      </button>
+                      <button 
+                        onClick={() => setShowClearConfirm(false)}
+                        className="text-[9px] font-bold text-on-surface-variant/40 hover:text-on-surface"
+                      >
+                        NO
+                      </button>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -328,51 +357,76 @@ export default function NotesScreen() {
         </motion.header>
 
         <div className="flex-1 max-w-4xl w-full mx-auto bg-surface-container-low/40 backdrop-blur-md rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-outline-variant/10 flex flex-col">
-          <div className="mb-8 flex gap-4 border-b border-outline-variant/10 pb-4 overflow-x-auto no-scrollbar">
+          <div className="mb-8 flex gap-4 border-b border-outline-variant/10 pb-4 overflow-x-auto no-scrollbar items-center">
             <button 
+              onClick={() => setIsPreview(!isPreview)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
+                isPreview 
+                  ? 'bg-primary text-on-primary' 
+                  : 'bg-surface-container-highest text-on-surface-variant hover:text-primary'
+              }`}
+            >
+              {isPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {isPreview ? 'Edit' : 'Preview'}
+            </button>
+            <div className="w-px h-6 bg-outline-variant/20 mx-2" />
+            <button 
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => formatText('bold')}
-              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg"
+              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
               title="Bold"
             >
               <Bold className="w-5 h-5" />
             </button>
             <button 
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => formatText('italic')}
-              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg"
+              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
               title="Italic"
             >
               <Italic className="w-5 h-5" />
             </button>
             <button 
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => formatText('list')}
-              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg"
+              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
               title="List"
             >
               <List className="w-5 h-5" />
             </button>
             <button 
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => formatText('quote')}
-              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg"
+              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
               title="Quote"
             >
               <Quote className="w-5 h-5" />
             </button>
             <div className="w-px h-6 bg-outline-variant/20 mx-2" />
             <button 
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => formatText('image')}
-              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg"
+              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
               title="Image"
             >
               <ImageIcon className="w-5 h-5" />
             </button>
           </div>
-          <textarea 
-            ref={textareaRef}
-            value={currentContent}
-            onChange={(e) => setCurrentContent(e.target.value)}
-            className="w-full flex-1 bg-transparent border-none focus:ring-0 text-lg md:text-xl text-on-surface leading-relaxed placeholder:text-on-surface-variant/20 resize-none custom-scrollbar" 
-            placeholder="Start typing your thoughts here..."
-          />
+          {isPreview ? (
+            <div className="flex-1 overflow-y-auto custom-scrollbar prose prose-invert prose-emerald max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {currentContent || '*No content to preview...*'}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <textarea 
+              ref={textareaRef}
+              value={currentContent}
+              onChange={(e) => setCurrentContent(e.target.value)}
+              className="w-full flex-1 bg-transparent border-none focus:ring-0 text-lg md:text-xl text-on-surface leading-relaxed placeholder:text-on-surface-variant/20 resize-none custom-scrollbar" 
+              placeholder="Start typing your thoughts here..."
+            />
+          )}
         </div>
 
         <div className="mt-8 max-w-4xl w-full mx-auto flex items-center justify-between text-on-surface-variant/60 text-[10px] tracking-wider uppercase font-bold">
