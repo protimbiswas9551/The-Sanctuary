@@ -75,6 +75,8 @@ export default function VoiceInterface() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(0.5);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [currentTrack, setCurrentTrack] = useState(TRACKS[0]);
   const [showMenu, setShowMenu] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -115,6 +117,13 @@ export default function VoiceInterface() {
     setIsPlaying(true);
   };
 
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "0:00";
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <main className="relative min-h-screen w-full flex flex-col items-center justify-center botanical-glow overflow-y-auto pt-32 pb-12">
       {/* Hidden Audio Element */}
@@ -124,6 +133,8 @@ export default function VoiceInterface() {
         loop
         preload="auto"
         onLoadStart={() => console.log("Audio loading started:", currentTrack.name)}
+        onLoadedMetadata={(e) => setDuration((e.target as HTMLAudioElement).duration)}
+        onTimeUpdate={(e) => setCurrentTime((e.target as HTMLAudioElement).currentTime)}
         onCanPlay={() => {
           if (isPlaying) {
             audioRef.current?.play().catch(() => {});
@@ -257,6 +268,22 @@ export default function VoiceInterface() {
         </div>
 
         <div className="flex flex-col items-center gap-8 w-full max-w-md">
+          {/* Timer and Progress */}
+          <div className="w-full space-y-2">
+            <div className="flex justify-between text-[10px] font-mono text-on-surface-variant tracking-widest uppercase">
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
+            <div className="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
+              <motion.div 
+                className="h-full bg-primary"
+                initial={{ width: 0 }}
+                animate={{ width: `${(currentTime / duration) * 100}%` }}
+                transition={{ type: "spring", bounce: 0, duration: 0.5 }}
+              />
+            </div>
+          </div>
+
           {/* Volume Slider */}
           <div className="w-full flex items-center gap-4 bg-surface-container-low/40 backdrop-blur-md p-4 rounded-2xl border border-outline-variant/10">
             <button 
