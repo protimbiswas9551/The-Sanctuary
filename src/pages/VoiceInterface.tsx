@@ -222,18 +222,44 @@ export default function VoiceInterface() {
         </div>
 
         <div className="relative group">
+          {/* Visualizer Rings */}
+          <AnimatePresence>
+            {isPlaying && (
+              <>
+                {[1, 2, 3].map((i) => (
+                  <motion.div
+                    key={`ring-${i}`}
+                    initial={{ opacity: 0, scale: 1 }}
+                    animate={{ 
+                      opacity: [0, 0.2, 0],
+                      scale: [1, 1.5 + i * 0.2, 2],
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{ 
+                      duration: 4,
+                      repeat: Infinity,
+                      delay: i * 1.2,
+                      ease: "easeOut"
+                    }}
+                    className="absolute inset-0 rounded-full border border-primary/30 pointer-events-none"
+                  />
+                ))}
+              </>
+            )}
+          </AnimatePresence>
+
           {/* The Core Glowing Orb - Pulses with music */}
           <motion.div 
             animate={{ 
-              scale: isPlaying ? [1, 1.1, 1] : 1,
+              scale: isPlaying ? [1, 1.05, 1] : 1,
               boxShadow: isPlaying ? [
                 "0 0 80px 20px rgba(115, 219, 154, 0.1)",
-                "0 0 140px 50px rgba(115, 219, 154, 0.3)",
+                "0 0 160px 60px rgba(115, 219, 154, 0.25)",
                 "0 0 80px 20px rgba(115, 219, 154, 0.1)"
               ] : "0 0 80px 20px rgba(115, 219, 154, 0.1)"
             }}
             transition={{ 
-              duration: 3, 
+              duration: 4, 
               repeat: Infinity, 
               ease: "easeInOut" 
             }}
@@ -248,6 +274,28 @@ export default function VoiceInterface() {
                 referrerPolicy="no-referrer"
               />
             </div>
+
+            {/* Subtle Wave Animation */}
+            {isPlaying && (
+              <div className="absolute inset-0 flex items-end justify-center opacity-20">
+                {[...Array(12)].map((_, i) => (
+                  <motion.div
+                    key={`wave-${i}`}
+                    animate={{ 
+                      height: ["20%", "60%", "20%"],
+                    }}
+                    transition={{ 
+                      duration: 1.5 + Math.random(),
+                      repeat: Infinity,
+                      delay: i * 0.1,
+                      ease: "easeInOut"
+                    }}
+                    className="w-1 mx-0.5 bg-primary rounded-full"
+                  />
+                ))}
+              </div>
+            )}
+
             <div className={`w-24 h-24 rounded-full bg-primary blur-3xl transition-opacity duration-1000 ${isPlaying ? 'opacity-60' : 'opacity-40'}`} />
             <div className="absolute inset-4 border border-primary/10 rounded-full" />
             
