@@ -154,7 +154,11 @@ export default function NotesScreen() {
           break;
         case 'list':
           const prefix = (start > 0 && prev[start - 1] !== '\n') ? '\n' : '';
-          textToInsert = `${prefix}- ${selectedText || 'list item'}`;
+          if (selectedText) {
+            textToInsert = prefix + selectedText.split('\n').map(line => `- ${line}`).join('\n');
+          } else {
+            textToInsert = `${prefix}- list item`;
+          }
           cursorOffset = 0;
           break;
         case 'quote':
