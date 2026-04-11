@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Search, Plus, Share2, Save, Bold, Italic, List, Quote, Image as ImageIcon, Edit3, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Search, Plus, Share2, Save, Bold, Italic, List, Quote, Image as ImageIcon, Edit3, Trash2, Eye, EyeOff, Mic, MicOff } from 'lucide-react';
 
 interface Note {
   id: string;
@@ -21,6 +21,8 @@ export default function NotesScreen() {
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load notes from localStorage on mount
@@ -39,6 +41,15 @@ export default function NotesScreen() {
   useEffect(() => {
     localStorage.setItem('sanctuary_notes', JSON.stringify(notes));
   }, [notes]);
+
+  // Cleanup voice recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
 
   const handleSave = () => {
     if (!currentContent.trim()) return;
@@ -182,6 +193,73 @@ export default function NotesScreen() {
 
   const wordCount = currentContent.trim() ? currentContent.trim().split(/\s+/).length : 0;
   const charCount = currentContent.length;
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in this browser.');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+      console.log('Transcript:', transcript);
+
+      // Command handling
+      if (transcript.startsWith('bold ')) {
+        const text = transcript.replace('bold ', '');
+        setCurrentContent(prev => prev + ` **${text}**`);
+      } else if (transcript.startsWith('italic ')) {
+        const text = transcript.replace('italic ', '');
+        setCurrentContent(prev => prev + ` *${text}*`);
+      } else if (transcript.startsWith('list ')) {
+        const text = transcript.replace('list ', '');
+        setCurrentContent(prev => prev + `\n- ${text}`);
+      } else if (transcript.startsWith('title ')) {
+        const text = transcript.replace('title ', '');
+        setCurrentTitle(text.charAt(0).toUpperCase() + text.slice(1));
+      } else if (transcript === 'new note' || transcript === 'create new note') {
+        createNewNote();
+      } else if (transcript === 'save note' || transcript === 'save reflection') {
+        handleSave();
+      } else if (transcript === 'clear content') {
+        setCurrentContent('');
+      } else {
+        // Default dictation
+        setCurrentContent(prev => {
+          const separator = prev.length > 0 && !prev.endsWith('\n') ? ' ' : '';
+          return prev + separator + transcript.charAt(0).toUpperCase() + transcript.slice(1);
+        });
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
 
   return (
     <div className="relative pt-20 min-h-screen flex overflow-hidden">
@@ -415,6 +493,19 @@ export default function NotesScreen() {
               title="Image"
             >
               <ImageIcon className="w-5 h-5" />
+            </button>
+            <div className="w-px h-6 bg-outline-variant/20 mx-2" />
+            <button 
+              onClick={toggleListening}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
+                isListening 
+                  ? 'bg-red-500 text-white animate-pulse' 
+                  : 'bg-surface-container-highest text-on-surface-variant hover:text-primary'
+              }`}
+              title={isListening ? 'Stop Listening' : 'Voice Dictation'}
+            >
+              {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              {isListening ? 'Listening...' : 'Voice'}
             </button>
           </div>
           {isPreview ? (
