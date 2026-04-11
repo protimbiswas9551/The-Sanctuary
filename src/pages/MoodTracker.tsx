@@ -489,8 +489,8 @@ export default function MoodTracker() {
           </div>
 
           <div className="grid grid-cols-7 gap-1 mb-2">
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
-              <div key={day} className="text-[10px] font-bold text-on-surface-variant/40 text-center py-2">
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+              <div key={`${day}-${idx}`} className="text-[10px] font-bold text-on-surface-variant/40 text-center py-2">
                 {day}
               </div>
             ))}
