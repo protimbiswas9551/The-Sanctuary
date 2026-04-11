@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Flower, AirVent, Mic, MicOff } from 'lucide-react';
+import { Send, Flower, AirVent, Mic, MicOff, Loader2 } from 'lucide-react';
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
+import { GoogleGenAI } from "@google/genai";
 
 interface Message {
   id: number;
@@ -34,6 +35,7 @@ export default function ChatInterface() {
     }
   ]);
   const [inputValue, setInputValue] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -44,29 +46,58 @@ export default function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = (text: string) => {
-    if (!text.trim()) return;
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim() || isTyping) return;
     
-    const newMessage: Message = {
+    const userMessage: Message = {
       id: Date.now(),
       text,
       sender: 'user',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     
-    setMessages(prev => [...prev, newMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInputValue('');
+    setIsTyping(true);
 
-    // Mock AI response
-    setTimeout(() => {
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      
+      const history = messages.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.text }]
+      }));
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+          ...history,
+          { role: 'user', parts: [{ text }] }
+        ],
+        config: {
+          systemInstruction: "You are 'The Sanctuary Guide', a serene, botanical-themed AI companion for emotional wellbeing. Your tone is gentle, poetic, and deeply validating. Use nature metaphors (gardens, roots, sunlight, seasons) to help the user explore their feelings. Keep responses concise but meaningful."
+        }
+      });
+
       const aiResponse: Message = {
         id: Date.now() + 1,
-        text: "I've heard you. Let's explore that further in our garden of thoughts.",
+        text: response.text || "I'm here with you, listening to the rustle of your thoughts.",
         sender: 'ai',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, aiResponse]);
-    }, 1000);
+    } catch (error) {
+      console.error("Gemini API Error:", error);
+      const fallbackResponse: Message = {
+        id: Date.now() + 1,
+        text: "I'm here, listening to the quiet spaces between your words. Let's continue our reflection.",
+        sender: 'ai',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, fallbackResponse]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const { isListening, startListening } = useVoiceCommands({
@@ -135,7 +166,7 @@ export default function ChatInterface() {
                     <div className="absolute -right-1 top-4 w-2 h-2 bg-surface-container-highest border-r border-t border-outline-variant/10 rotate-45 translate-x-1/2" />
                   )}
                   
-                  <p className={`text-[15px] leading-relaxed ${msg.sender === 'ai' ? 'text-on-surface font-medium' : 'text-on-surface-variant'}`}>
+                  <p className={`text-[15px] whitespace-pre-wrap leading-relaxed ${msg.sender === 'ai' ? 'text-on-surface font-medium' : 'text-on-surface-variant'}`}>
                     {msg.text}
                   </p>
                   
@@ -157,6 +188,20 @@ export default function ChatInterface() {
                 </div>
               </motion.div>
             ))}
+            {isTyping && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex gap-4 max-w-[90%] md:max-w-[85%]"
+              >
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                </div>
+                <div className="bg-primary/5 border border-primary/10 px-6 py-4 rounded-3xl italic text-xs text-on-surface-variant">
+                  The Sanctuary Guide is reflecting on your words...
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
           <div ref={messagesEndRef} />
         </div>

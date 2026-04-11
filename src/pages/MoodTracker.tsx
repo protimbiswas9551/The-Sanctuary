@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Ear, Flower2, Brain, Tag, X, Filter } from 'lucide-react';
+import { Ear, Flower2, Brain, Tag, X, Filter, Sparkles, RefreshCw, Loader2, Mic, MicOff, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { GoogleGenAI, Type } from "@google/genai";
+import { useVoiceCommands } from '../hooks/useVoiceCommands';
+import { 
+  format, 
+  startOfMonth, 
+  endOfMonth, 
+  startOfWeek, 
+  endOfWeek, 
+  eachDayOfInterval, 
+  isSameMonth, 
+  isSameDay, 
+  addMonths, 
+  subMonths,
+  isToday
+} from 'date-fns';
 
 interface JournalEntry {
   id: number;
@@ -29,6 +44,16 @@ export default function MoodTracker() {
   const [isSaving, setIsSaving] = useState(false);
   const [savedEntries, setSavedEntries] = useState<JournalEntry[]>([]);
   const [filterTag, setFilterTag] = useState<string | null>(null);
+  const [prompts, setPrompts] = useState<string[]>([]);
+  const [isLoadingPrompts, setIsLoadingPrompts] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const { isListening, startListening } = useVoiceCommands({
+    onSendMessage: (text) => {
+      setEntry(prev => prev ? `${prev} ${text}` : text);
+    }
+  });
 
   // Load entries on mount
   useEffect(() => {
@@ -88,6 +113,64 @@ export default function MoodTracker() {
     localStorage.setItem('sanctuary_entries', JSON.stringify(updatedEntries));
   };
 
+  const generatePrompts = async () => {
+    setIsLoadingPrompts(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      
+      const recentContext = savedEntries
+        .slice(0, 5)
+        .map(e => `Mood: ${e.mood}, Text: ${e.text.substring(0, 100)}...`)
+        .join('\n');
+
+      const currentMoodContext = selectedMood ? `The user is currently feeling ${selectedMood}.` : "The user hasn't selected a mood yet.";
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Based on the user's recent journaling history and current mood, suggest 3 personalized, deep, and therapeutic journaling prompts.
+        
+        Recent Context:
+        ${recentContext}
+        
+        Current Context:
+        ${currentMoodContext}
+        
+        Return the prompts as a JSON array of strings.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
+          }
+        }
+      });
+
+      const generatedPrompts = JSON.parse(response.text || '[]');
+      setPrompts(generatedPrompts);
+    } catch (error) {
+      console.error("Error generating prompts:", error);
+      setPrompts([
+        "What is one small thing that brought you peace today?",
+        "How does your current environment reflect your inner state?",
+        "If your mood was a landscape, what would it look like?"
+      ]);
+    } finally {
+      setIsLoadingPrompts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (savedEntries.length > 0) {
+      generatePrompts();
+    } else {
+      setPrompts([
+        "What's on your mind today?",
+        "How are you feeling in this moment?",
+        "What's one thing you're grateful for?"
+      ]);
+    }
+  }, [selectedMood]);
+
   const filteredEntries = filterTag 
     ? savedEntries.filter(e => e.tags?.includes(filterTag))
     : savedEntries;
@@ -131,12 +214,25 @@ export default function MoodTracker() {
               </span>
             </div>
             <h2 className="text-2xl text-on-surface mb-6 font-medium tracking-tight">What's weighing on your mind?</h2>
-            <textarea 
-              value={entry}
-              onChange={(e) => setEntry(e.target.value)}
-              className="w-full bg-transparent border-none focus:ring-0 text-xl md:text-2xl text-on-surface placeholder:text-on-surface-variant/30 min-h-[150px] resize-none custom-scrollbar"
-              placeholder="Begin typing softly..."
-            />
+            <div className="relative">
+              <textarea 
+                value={entry}
+                onChange={(e) => setEntry(e.target.value)}
+                className="w-full bg-transparent border-none focus:ring-0 text-xl md:text-2xl text-on-surface placeholder:text-on-surface-variant/30 min-h-[150px] resize-none custom-scrollbar pr-12"
+                placeholder="Begin typing softly..."
+              />
+              <button 
+                onClick={startListening}
+                className={`absolute right-0 top-0 p-3 rounded-full transition-all ${
+                  isListening 
+                    ? 'bg-red-500/20 text-red-400 animate-pulse' 
+                    : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-highest'
+                }`}
+                title="Voice Input"
+              >
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
+            </div>
 
             {/* Mood Selection */}
             <div className="mt-6">
@@ -233,6 +329,47 @@ export default function MoodTracker() {
           </div>
         </div>
 
+        {/* Personalized Prompts */}
+        <div className="glass-panel rounded-3xl p-8 relative overflow-hidden">
+          <div className="botanical-grain absolute inset-0 opacity-20" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <label className="text-secondary text-[10px] uppercase tracking-widest font-bold">Personalized Prompts</label>
+              </div>
+              <button 
+                onClick={generatePrompts}
+                disabled={isLoadingPrompts}
+                className="p-2 rounded-full hover:bg-surface-container-highest transition-colors disabled:opacity-50"
+              >
+                {isLoadingPrompts ? (
+                  <Loader2 className="w-4 h-4 text-on-surface-variant animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 text-on-surface-variant" />
+                )}
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4">
+              {prompts.map((prompt, idx) => (
+                <motion.button
+                  key={idx}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  onClick={() => setEntry(prev => prev ? `${prev}\n\n${prompt}` : prompt)}
+                  className="text-left p-4 rounded-2xl bg-surface-container-highest/30 hover:bg-surface-container-highest/60 border border-outline-variant/5 transition-all group"
+                >
+                  <p className="text-on-surface text-sm leading-relaxed group-hover:text-primary transition-colors">
+                    {prompt}
+                  </p>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Recent Reflections */}
         <div className="space-y-6">
           <div className="flex items-center justify-between px-4">
@@ -322,6 +459,96 @@ export default function MoodTracker() {
 
       {/* Side Navigation/Actions */}
       <section className="lg:col-span-4 flex flex-col gap-6 relative z-10">
+        {/* Botanical Calendar */}
+        <div className="glass-panel rounded-3xl p-6 border border-outline-variant/10">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="w-4 h-4 text-primary" />
+              <h4 className="text-on-surface font-medium text-sm uppercase tracking-widest">Garden Calendar</h4>
+            </div>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                className="p-1.5 rounded-full hover:bg-surface-container-highest text-on-surface-variant transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                className="p-1.5 rounded-full hover:bg-surface-container-highest text-on-surface-variant transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="text-center mb-4">
+            <span className="text-on-surface font-serif italic text-lg">
+              {format(currentMonth, 'MMMM yyyy')}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
+              <div key={day} className="text-[10px] font-bold text-on-surface-variant/40 text-center py-2">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {(() => {
+              const monthStart = startOfMonth(currentMonth);
+              const monthEnd = endOfMonth(monthStart);
+              const startDate = startOfWeek(monthStart);
+              const endDate = endOfWeek(monthEnd);
+              const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
+
+              return calendarDays.map((day, idx) => {
+                const entryOnDay = savedEntries.find(e => {
+                  // Simple date matching for demo, ideally store ISO strings
+                  const entryDate = new Date(e.id);
+                  return isSameDay(entryDate, day);
+                });
+
+                const isCurrentMonth = isSameMonth(day, monthStart);
+                const isSelected = isSameDay(day, selectedDate);
+                const isTodayDate = isToday(day);
+
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedDate(day)}
+                    className={`
+                      relative aspect-square flex items-center justify-center rounded-xl text-[11px] transition-all
+                      ${!isCurrentMonth ? 'text-on-surface-variant/10' : 'text-on-surface'}
+                      ${isSelected ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'hover:bg-surface-container-highest'}
+                      ${isTodayDate && !isSelected ? 'border border-primary/30 text-primary' : ''}
+                    `}
+                  >
+                    {format(day, 'd')}
+                    {entryOnDay && !isSelected && (
+                      <div className="absolute bottom-1.5 w-1 h-1 rounded-full bg-secondary animate-pulse" />
+                    )}
+                  </button>
+                );
+              });
+            })()}
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-outline-variant/5">
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">
+              <span>Selected Day</span>
+              <span className="text-primary">{format(selectedDate, 'MMM d, yyyy')}</span>
+            </div>
+            <p className="mt-2 text-xs text-on-surface-variant italic leading-relaxed">
+              {savedEntries.some(e => isSameDay(new Date(e.id), selectedDate))
+                ? "You rooted a thought on this day. The garden remembers."
+                : "A quiet day in the garden. Perhaps time for a new reflection?"}
+            </p>
+          </div>
+        </div>
+
         <label className="text-secondary text-[10px] uppercase tracking-widest font-bold px-4">Choose Your Guide</label>
         
         {[
