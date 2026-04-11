@@ -152,8 +152,13 @@ export default function NotesScreen() {
           cursorOffset = 0;
           break;
         case 'image':
-          textToInsert = `![${selectedText || 'alt text'}](https://)`;
-          cursorOffset = selectedText ? 10 : 2;
+          const url = prompt('Enter the image URL:', 'https://');
+          if (url) {
+            textToInsert = `![${selectedText || 'alt text'}](${url})`;
+            cursorOffset = 0;
+          } else {
+            return prev;
+          }
           break;
       }
 

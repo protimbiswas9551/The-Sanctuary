@@ -1,52 +1,144 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Wind, RotateCcw, Home } from 'lucide-react';
+import { Music, Play, Pause, Home, Volume2, VolumeX, ChevronDown, ChevronUp, Leaf, Waves, CloudRain, Sparkles, Bird, Sun, Moon, Wind } from 'lucide-react';
 
-type BreathingPhase = 'Inhale' | 'Hold' | 'Exhale' | 'Rest';
+const TRACKS = [
+  { 
+    id: 'zen', 
+    name: 'Zen Garden', 
+    desc: 'Soft ambient melodies for deep focus.',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    icon: Sparkles,
+    color: 'text-primary'
+  },
+  { 
+    id: 'forest', 
+    name: 'Morning Forest', 
+    desc: 'Stable ambient sounds for relaxation.',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    icon: Leaf,
+    color: 'text-emerald-400'
+  },
+  { 
+    id: 'birds', 
+    name: 'Bird Sanctuary', 
+    desc: 'Cheerful chirping and morning songs.',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    icon: Bird,
+    color: 'text-yellow-400'
+  },
+  { 
+    id: 'meadow', 
+    name: 'Peaceful Meadow', 
+    desc: 'Gentle breeze through the wildflowers.',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+    icon: Sun,
+    color: 'text-orange-400'
+  },
+  { 
+    id: 'ocean', 
+    name: 'Ocean Waves', 
+    desc: 'Rhythmic tides for peaceful sleep.',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
+    icon: Waves,
+    color: 'text-blue-400'
+  },
+  { 
+    id: 'rain', 
+    name: 'Soft Rainfall', 
+    desc: 'Gentle rain for a calm mind.',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3',
+    icon: CloudRain,
+    color: 'text-indigo-400'
+  },
+  { 
+    id: 'crickets', 
+    name: 'Evening Crickets', 
+    desc: 'The soothing sounds of a summer night.',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',
+    icon: Moon,
+    color: 'text-purple-400'
+  },
+  { 
+    id: 'stream', 
+    name: 'Mountain Stream', 
+    desc: 'Crystal clear water flowing over stones.',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3',
+    icon: Wind,
+    color: 'text-cyan-400'
+  }
+];
 
 export default function VoiceInterface() {
   const navigate = useNavigate();
-  const [isActive, setIsActive] = useState(false);
-  const [phase, setPhase] = useState<BreathingPhase>('Inhale');
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(0.5);
+  const [currentTrack, setCurrentTrack] = useState(TRACKS[0]);
+  const [showMenu, setShowMenu] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    let phaseTimer: NodeJS.Timeout;
-    let countdown: NodeJS.Timeout;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    if (isActive && timeLeft > 0) {
-      countdown = setInterval(() => {
-        setTimeLeft(t => t - 1);
-      }, 1000);
-
-      const runPhase = () => {
-        setPhase('Inhale');
-        phaseTimer = setTimeout(() => {
-          setPhase('Hold');
-          phaseTimer = setTimeout(() => {
-            setPhase('Exhale');
-            phaseTimer = setTimeout(() => {
-              setPhase('Rest');
-              phaseTimer = setTimeout(runPhase, 4000);
-            }, 4000);
-          }, 4000);
-        }, 4000);
-      };
-
-      runPhase();
-    } else if (timeLeft === 0) {
-      setIsActive(false);
+    // Handle play/pause
+    if (isPlaying) {
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          if (err.name !== 'AbortError') {
+            console.error("Playback failed:", err);
+            if (err.name === 'NotAllowedError' || err.name === 'NotSupportedError') {
+              setIsPlaying(false);
+            }
+          }
+        });
+      }
+    } else {
+      audio.pause();
     }
+  }, [isPlaying, currentTrack]); // Re-run if track changes to ensure it plays
 
-    return () => {
-      clearTimeout(phaseTimer);
-      clearInterval(countdown);
-    };
-  }, [isActive, timeLeft === 0]);
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+      audioRef.current.muted = isMuted;
+    }
+  }, [volume, isMuted]);
+
+  const selectTrack = (track: typeof TRACKS[0]) => {
+    setCurrentTrack(track);
+    setShowMenu(false);
+    // The useEffect will handle playing the new track because currentTrack is a dependency
+    setIsPlaying(true);
+  };
 
   return (
-    <main className="relative h-screen w-full flex flex-col items-center justify-center botanical-glow overflow-hidden pt-20">
+    <main className="relative min-h-screen w-full flex flex-col items-center justify-center botanical-glow overflow-y-auto pt-32 pb-12">
+      {/* Hidden Audio Element */}
+      <audio
+        ref={audioRef}
+        src={currentTrack.url}
+        loop
+        preload="auto"
+        onLoadStart={() => console.log("Audio loading started:", currentTrack.name)}
+        onCanPlay={() => {
+          if (isPlaying) {
+            audioRef.current?.play().catch(() => {});
+          }
+        }}
+        onError={(e) => {
+          const error = (e.target as HTMLAudioElement).error;
+          console.error("Audio error:", {
+            code: error?.code,
+            message: error?.message,
+            track: currentTrack.name
+          });
+          setIsPlaying(false);
+        }}
+      />
       {/* Ambient Light Decor */}
       <div className="absolute inset-0 pointer-events-none opacity-40">
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-primary-container blur-[120px]" />
@@ -54,39 +146,87 @@ export default function VoiceInterface() {
       </div>
 
       {/* Centered Interaction Group */}
-      <div className="relative z-10 flex flex-col items-center justify-center space-y-12 max-w-3xl w-full px-6 text-center">
+      <div className="relative z-10 flex flex-col items-center justify-center space-y-8 max-w-3xl w-full px-6 text-center">
         <div className="space-y-4">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex items-center justify-center gap-3 text-primary"
           >
-            <Wind className="w-6 h-6" />
-            <span className="text-[10px] uppercase tracking-[0.4em] font-bold">The Breathing Garden</span>
+            <currentTrack.icon className={`w-6 h-6 ${currentTrack.color}`} />
+            <span className="text-[10px] uppercase tracking-[0.4em] font-bold">The Soundscape Garden</span>
           </motion.div>
           <h1 className="text-4xl md:text-5xl font-serif italic text-on-surface">
-            {isActive ? phase : timeLeft === 0 ? "Peace Found" : "Moment of Stillness"}
+            {isPlaying ? currentTrack.name : "Quiet Sanctuary"}
           </h1>
-          <p className="text-on-surface-variant max-w-md mx-auto leading-relaxed">
-            {isActive 
-              ? (phase === 'Inhale' ? "Fill your lungs with the morning mist..." : phase === 'Hold' ? "Hold the stillness within..." : phase === 'Exhale' ? "Release the weight of the day..." : "Prepare for the next breath...")
-              : timeLeft === 0 ? "You've tended to your inner garden. Carry this calm with you." : "A quick reset to center your focus. Let the garden breathe with you."}
+          <p className="text-on-surface-variant max-w-md mx-auto leading-relaxed h-12">
+            {isPlaying 
+              ? currentTrack.desc
+              : "Find your center in the silence. Tap to begin the soundscape."}
           </p>
         </div>
 
+        {/* Track Selection Menu */}
+        <div className="relative w-full max-w-xs">
+          <button 
+            onClick={() => setShowMenu(!showMenu)}
+            className="w-full flex items-center justify-between px-6 py-3 rounded-2xl bg-surface-container-low/60 backdrop-blur-xl border border-outline-variant/20 text-on-surface hover:bg-surface-container-low transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <currentTrack.icon className={`w-4 h-4 ${currentTrack.color}`} />
+              <span className="text-sm font-medium">{currentTrack.name}</span>
+            </div>
+            {showMenu ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
+          <AnimatePresence>
+            {showMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                className="absolute top-full mt-4 left-0 right-0 bg-surface-container-low/90 backdrop-blur-2xl border border-outline-variant/20 rounded-3xl p-3 shadow-2xl z-50 overflow-hidden"
+              >
+                <div className="botanical-grain absolute inset-0 opacity-10" />
+                <div className="relative z-10 space-y-1 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                  {TRACKS.map(track => (
+                    <button
+                      key={track.id}
+                      onClick={() => selectTrack(track)}
+                      className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${currentTrack.id === track.id ? 'bg-primary/10 border-primary/20' : 'hover:bg-surface-container-highest/50'}`}
+                    >
+                      <div className={`p-2 rounded-full bg-surface-container-highest ${track.color}`}>
+                        <track.icon className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-sm font-bold text-on-surface">{track.name}</div>
+                        <div className="text-[10px] text-on-surface-variant/60 uppercase tracking-wider">{track.id}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         <div className="relative group">
-          {/* The Core Glowing Orb */}
+          {/* The Core Glowing Orb - Pulses with music */}
           <motion.div 
             animate={{ 
-              scale: isActive ? (phase === 'Inhale' ? 1.3 : phase === 'Exhale' ? 0.8 : 1.1) : 1,
-              boxShadow: isActive ? [
+              scale: isPlaying ? [1, 1.1, 1] : 1,
+              boxShadow: isPlaying ? [
                 "0 0 80px 20px rgba(115, 219, 154, 0.1)",
-                "0 0 120px 40px rgba(115, 219, 154, 0.3)",
+                "0 0 140px 50px rgba(115, 219, 154, 0.3)",
                 "0 0 80px 20px rgba(115, 219, 154, 0.1)"
               ] : "0 0 80px 20px rgba(115, 219, 154, 0.1)"
             }}
-            transition={{ duration: 4, repeat: isActive ? 0 : Infinity, ease: "easeInOut" }}
-            className="w-64 h-64 md:w-80 md:h-80 rounded-full bg-emerald-900/20 flex items-center justify-center relative overflow-hidden border border-primary/20"
+            transition={{ 
+              duration: 3, 
+              repeat: Infinity, 
+              ease: "easeInOut" 
+            }}
+            className="w-56 h-56 md:w-72 md:h-72 rounded-full bg-emerald-900/20 flex items-center justify-center relative overflow-hidden border border-primary/20"
           >
             {/* Texture Overlay */}
             <div className="absolute inset-0 opacity-30 mix-blend-overlay">
@@ -97,46 +237,80 @@ export default function VoiceInterface() {
                 referrerPolicy="no-referrer"
               />
             </div>
-            <div className={`w-24 h-24 rounded-full bg-primary blur-3xl transition-opacity duration-1000 ${isActive ? 'opacity-60' : 'opacity-40'}`} />
+            <div className={`w-24 h-24 rounded-full bg-primary blur-3xl transition-opacity duration-1000 ${isPlaying ? 'opacity-60' : 'opacity-40'}`} />
             <div className="absolute inset-4 border border-primary/10 rounded-full" />
             
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-4xl font-light text-on-surface tabular-nums">
-                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
-              </span>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={isPlaying ? 'playing' : 'paused'}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="text-primary"
+                >
+                  {isPlaying ? <Music className="w-12 h-12 animate-pulse" /> : <Play className="w-12 h-12 opacity-20" />}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </motion.div>
         </div>
 
-        <div className="flex gap-4">
-          {timeLeft === 0 ? (
+        <div className="flex flex-col items-center gap-8 w-full max-w-md">
+          {/* Volume Slider */}
+          <div className="w-full flex items-center gap-4 bg-surface-container-low/40 backdrop-blur-md p-4 rounded-2xl border border-outline-variant/10">
+            <button 
+              onClick={() => setIsMuted(!isMuted)}
+              className="text-on-surface-variant hover:text-primary transition-colors"
+            >
+              {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={(e) => {
+                setVolume(parseFloat(e.target.value));
+                if (isMuted) setIsMuted(false);
+              }}
+              className="flex-1 h-1.5 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary"
+            />
+            <span className="text-[10px] font-mono text-on-surface-variant w-8">
+              {Math.round(volume * 100)}%
+            </span>
+          </div>
+
+          <div className="flex items-center gap-6">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setTimeLeft(60)}
-              className="flex items-center gap-2 px-8 py-4 rounded-full bg-primary text-on-primary font-bold shadow-xl shadow-primary/20"
+              onClick={() => setIsPlaying(!isPlaying)}
+              className={`flex items-center gap-3 px-12 py-4 rounded-full font-bold transition-all ${isPlaying ? 'bg-surface-container-highest text-on-surface' : 'bg-primary text-on-primary shadow-xl shadow-primary/20'}`}
             >
-              <RotateCcw className="w-5 h-5" />
-              Begin Again
+              {isPlaying ? (
+                <>
+                  <Pause className="w-5 h-5" />
+                  Pause Sanctuary
+                </>
+              ) : (
+                <>
+                  <Play className="w-5 h-5" />
+                  Enter Soundscape
+                </>
+              )}
             </motion.button>
-          ) : (
+
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setIsActive(!isActive)}
-              className={`px-12 py-4 rounded-full font-bold transition-all ${isActive ? 'bg-surface-container-highest text-on-surface' : 'bg-primary text-on-primary shadow-xl shadow-primary/20'}`}
+              onClick={() => navigate('/')}
+              className="p-4 rounded-full bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-primary transition-colors"
             >
-              {isActive ? 'Pause' : 'Start 1m Session'}
+              <Home className="w-6 h-6" />
             </motion.button>
-          )}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/')}
-            className="p-4 rounded-full bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-primary transition-colors"
-          >
-            <Home className="w-6 h-6" />
-          </motion.button>
+          </div>
         </div>
       </div>
     </main>

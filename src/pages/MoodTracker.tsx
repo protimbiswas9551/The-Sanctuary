@@ -300,9 +300,16 @@ export default function MoodTracker() {
                 disabled={isSaving || !entry.trim() || !selectedMood}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className={`bg-gradient-to-r from-primary to-secondary text-on-primary px-8 py-3 rounded-full font-bold tracking-tight shadow-xl shadow-primary/10 transition-opacity ${isSaving || !entry.trim() || !selectedMood ? 'opacity-50 cursor-not-allowed' : 'opacity-100'}`}
+                className={`bg-gradient-to-r from-primary to-secondary text-on-primary px-8 py-3 rounded-full font-bold tracking-tight shadow-xl shadow-primary/10 transition-opacity flex items-center gap-2 ${isSaving || !entry.trim() || !selectedMood ? 'opacity-50 cursor-not-allowed' : 'opacity-100'}`}
               >
-                {isSaving ? 'Rooting...' : 'Root this thought'}
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Rooting...</span>
+                  </>
+                ) : (
+                  'Root this thought'
+                )}
               </motion.button>
             </div>
           </div>
