@@ -242,12 +242,14 @@ export default function MoodTracker() {
               </label>
               <div className="flex flex-wrap gap-3">
                 {MOODS.map(mood => (
-                  <button
+                  <motion.button
                     key={mood.label}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setSelectedMood(mood.label)}
                     className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-all border ${
                       selectedMood === mood.label
-                        ? 'bg-primary/20 border-primary scale-105'
+                        ? 'bg-primary/20 border-primary ring-2 ring-primary/20'
                         : 'bg-surface-container-highest/30 border-transparent hover:bg-surface-container-highest/60'
                     }`}
                   >
@@ -255,7 +257,7 @@ export default function MoodTracker() {
                     <span className={`text-[9px] font-bold uppercase tracking-tighter ${selectedMood === mood.label ? 'text-primary' : 'text-on-surface-variant'}`}>
                       {mood.label}
                     </span>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
@@ -268,8 +270,10 @@ export default function MoodTracker() {
               </label>
               <div className="flex flex-wrap gap-2">
                 {PREDEFINED_TAGS.map(tag => (
-                  <button
+                  <motion.button
                     key={tag}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => toggleTag(tag)}
                     className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all border ${
                       selectedTags.includes(tag)
@@ -278,7 +282,7 @@ export default function MoodTracker() {
                     }`}
                   >
                     {tag}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
@@ -516,8 +520,10 @@ export default function MoodTracker() {
                 const isTodayDate = isToday(day);
 
                 return (
-                  <button
+                  <motion.button
                     key={idx}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setSelectedDate(day)}
                     className={`
                       relative aspect-square flex items-center justify-center rounded-xl text-[11px] transition-all
@@ -530,7 +536,7 @@ export default function MoodTracker() {
                     {entryOnDay && !isSelected && (
                       <div className="absolute bottom-1.5 w-1 h-1 rounded-full bg-secondary animate-pulse" />
                     )}
-                  </button>
+                  </motion.button>
                 );
               });
             })()}
