@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Ear, Flower2, Brain, Tag, X, Filter, Sparkles, RefreshCw, Loader2, Mic, MicOff, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wind } from 'lucide-react';
+import { Ear, Flower2, Brain, Tag, X, Filter, Sparkles, RefreshCw, Loader2, Mic, MicOff, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wind, Image as ImageIcon, Bell, Lightbulb } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
 import BreathingExercise from '../components/BreathingExercise';
@@ -43,6 +43,7 @@ export default function MoodTracker() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [savedEntries, setSavedEntries] = useState<JournalEntry[]>([]);
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [prompts, setPrompts] = useState<string[]>([]);
@@ -161,6 +162,42 @@ export default function MoodTracker() {
     }
   };
 
+  const handleGenerateInsight = async () => {
+    if (!entry.trim()) {
+      alert("Please write something first so I can generate an insight.");
+      return;
+    }
+    
+    setIsGeneratingInsight(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `The user just wrote this in their journal: "${entry}". 
+        Provide a single, short (1-2 sentences), deeply insightful, and compassionate reflection or perspective on what they wrote. 
+        Focus on emotional intelligence and mindfulness.`
+      });
+      
+      const insight = response.text;
+      if (insight) {
+        alert(`Insight: ${insight}`);
+      }
+    } catch (error) {
+      console.error("Error generating insight:", error);
+      alert("The garden is quiet right now. Try again in a moment.");
+    } finally {
+      setIsGeneratingInsight(false);
+    }
+  };
+
+  const handleAddPhoto = () => {
+    alert("Photo integration would allow you to upload a visual memory to this entry. (Feature coming soon)");
+  };
+
+  const handleSetReminder = () => {
+    alert("Reminder set! We'll nudge you to check back on this thought later.");
+  };
+
   useEffect(() => {
     if (savedEntries.length > 0) {
       generatePrompts();
@@ -234,6 +271,42 @@ export default function MoodTracker() {
               >
                 {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex flex-wrap gap-3 mt-4">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleAddPhoto}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-highest/40 border border-outline-variant/10 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest/60 transition-all text-xs font-medium"
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                Add Photo
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSetReminder}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-highest/40 border border-outline-variant/10 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest/60 transition-all text-xs font-medium"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                Set Reminder
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleGenerateInsight}
+                disabled={isGeneratingInsight}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 border border-primary/10 text-primary hover:bg-primary/20 transition-all text-xs font-bold"
+              >
+                {isGeneratingInsight ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Lightbulb className="w-3.5 h-3.5" />
+                )}
+                Generate Insight
+              </motion.button>
             </div>
 
             {/* Mood Selection */}
