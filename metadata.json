@@ -1,0 +1,7 @@
+{
+  "name": "The Sanctuary",
+  "description": "A serene, botanical-themed AI companion for emotional wellbeing, featuring mood tracking, journaling, and mindful reflection.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
