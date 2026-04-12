@@ -49,6 +49,9 @@
 }
 
 @layer base {
+  html {
+    @apply scroll-smooth;
+  }
   body {
     @apply bg-background text-on-surface font-sans antialiased;
   }
