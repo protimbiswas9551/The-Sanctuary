@@ -80,6 +80,8 @@ export default function VoiceInterface() {
   const [currentTrack, setCurrentTrack] = useState(TRACKS[0]);
   const [showMenu, setShowMenu] = useState(false);
   const [amplitude, setAmplitude] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -91,18 +93,26 @@ export default function VoiceInterface() {
     if (!audio) return;
 
     const setupAudioContext = () => {
-      if (!audioContextRef.current) {
-        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AudioContextClass();
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 256;
-        sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
-        sourceRef.current.connect(analyserRef.current);
-        analyserRef.current.connect(audioContextRef.current.destination);
-      }
-      
-      if (audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
+      try {
+        if (!audioContextRef.current) {
+          const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+          audioContextRef.current = new AudioContextClass();
+          analyserRef.current = audioContextRef.current.createAnalyser();
+          analyserRef.current.fftSize = 256;
+          
+          // Create source only once
+          if (!sourceRef.current) {
+            sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
+            sourceRef.current.connect(analyserRef.current);
+            analyserRef.current.connect(audioContextRef.current.destination);
+          }
+        }
+        
+        if (audioContextRef.current.state === 'suspended') {
+          audioContextRef.current.resume();
+        }
+      } catch (err) {
+        console.error("Failed to setup audio context:", err);
       }
     };
 
@@ -118,26 +128,25 @@ export default function VoiceInterface() {
         sum += dataArray[i];
       }
       const average = sum / bufferLength;
-      const normalizedAmplitude = Math.min(average / 128, 1); // Normalize to 0-1
+      const normalizedAmplitude = Math.min(average / 128, 1);
       setAmplitude(normalizedAmplitude);
       
       animationFrameRef.current = requestAnimationFrame(updateVisualizer);
     };
 
-    // Handle play/pause
     if (isPlaying) {
       setupAudioContext();
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(err => {
-          if (err.name !== 'AbortError') {
-            console.error("Playback failed:", err);
-            if (err.name === 'NotAllowedError' || err.name === 'NotSupportedError') {
-              setIsPlaying(false);
-            }
-          }
-        });
-      }
+      setIsLoading(true);
+      setError(null);
+      audio.play().catch(err => {
+        if (err.name !== 'AbortError') {
+          console.error("Playback failed:", err);
+          setError("Failed to play audio. Please try again.");
+          setIsPlaying(false);
+        }
+      }).finally(() => {
+        setIsLoading(false);
+      });
       updateVisualizer();
     } else {
       audio.pause();
@@ -152,7 +161,16 @@ export default function VoiceInterface() {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isPlaying, currentTrack]); // Re-run if track changes to ensure it plays
+  }, [isPlaying, currentTrack]);
+
+  // Global cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -183,22 +201,29 @@ export default function VoiceInterface() {
         src={currentTrack.url}
         loop
         preload="auto"
-        onLoadStart={() => console.log("Audio loading started:", currentTrack.name)}
+        crossOrigin="anonymous"
+        onLoadStart={() => {
+          setIsLoading(true);
+          setError(null);
+        }}
         onLoadedMetadata={(e) => setDuration((e.target as HTMLAudioElement).duration)}
         onTimeUpdate={(e) => setCurrentTime((e.target as HTMLAudioElement).currentTime)}
         onCanPlay={() => {
-          if (isPlaying) {
-            audioRef.current?.play().catch(() => {});
+          setIsLoading(false);
+          if (isPlaying && audioRef.current) {
+            audioRef.current.play().catch(err => console.error("Auto-play failed:", err));
           }
         }}
         onError={(e) => {
-          const error = (e.target as HTMLAudioElement).error;
+          const audioErr = (e.target as HTMLAudioElement).error;
           console.error("Audio error:", {
-            code: error?.code,
-            message: error?.message,
+            code: audioErr?.code,
+            message: audioErr?.message,
             track: currentTrack.name
           });
+          setError("The audio track could not be loaded. Please try another one.");
           setIsPlaying(false);
+          setIsLoading(false);
         }}
       />
       {/* Ambient Light Decor */}
@@ -221,11 +246,19 @@ export default function VoiceInterface() {
           <h1 className="text-4xl md:text-5xl font-serif italic text-on-surface">
             {isPlaying ? currentTrack.name : "Quiet Sanctuary"}
           </h1>
-          <p className="text-on-surface-variant max-w-md mx-auto leading-relaxed h-12">
-            {isPlaying 
-              ? currentTrack.desc
-              : "Find your center in the silence. Tap to begin the soundscape."}
-          </p>
+          <div className="h-12 flex flex-col items-center justify-center">
+            {error ? (
+              <p className="text-red-400 text-sm font-medium animate-pulse">{error}</p>
+            ) : isLoading ? (
+              <p className="text-primary text-sm font-medium animate-pulse">Cultivating your soundscape...</p>
+            ) : (
+              <p className="text-on-surface-variant max-w-md mx-auto leading-relaxed">
+                {isPlaying 
+                  ? currentTrack.desc
+                  : "Find your center in the silence. Tap to begin the soundscape."}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Track Selection Menu */}
