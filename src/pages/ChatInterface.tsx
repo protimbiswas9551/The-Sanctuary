@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Flower, AirVent, Mic, MicOff, Loader2 } from 'lucide-react';
+import { Send, Flower, AirVent, Mic, MicOff, Loader2, Ear, Heart, Brain } from 'lucide-react';
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
 import { GoogleGenAI } from "@google/genai";
 
@@ -11,6 +11,33 @@ interface Message {
   sender: 'ai' | 'user';
   time: string;
 }
+
+const PERSONALITIES = [
+  {
+    id: 'listener',
+    name: 'The Listener',
+    description: 'Empathetic, non-judgmental',
+    icon: Ear,
+    color: 'text-primary',
+    instruction: "You are 'The Listener', a deeply empathetic and non-judgmental AI companion. Your goal is to provide a safe space for the user to vent and express themselves. Listen more than you speak. Use validating phrases like 'I hear you', 'That sounds difficult', and 'It's okay to feel that way'. Avoid giving advice unless explicitly asked. Use soft, organic metaphors."
+  },
+  {
+    id: 'friend',
+    name: 'The Friend',
+    description: 'Warm, validating',
+    icon: Heart,
+    color: 'text-secondary',
+    instruction: "You are 'The Friend', a warm, cheerful, and highly validating AI companion. Your tone is casual, supportive, and uplifting. Use phrases like 'I'm so proud of you', 'You've got this!', and 'I'm here for you, always'. Focus on the user's strengths and celebrate their small wins. Use bright, sunny metaphors (sunlight, blooming flowers, clear skies)."
+  },
+  {
+    id: 'mentor',
+    name: 'The Mentor',
+    description: 'Insightful, guiding',
+    icon: Brain,
+    color: 'text-emerald-400',
+    instruction: "You are 'The Mentor', an insightful and guiding AI companion. Your tone is wise, calm, and slightly more structured. Your goal is to help the user find clarity and growth. Ask thought-provoking questions that encourage self-reflection. Use metaphors related to roots, foundations, and the changing seasons to illustrate the process of growth and change."
+  }
+];
 
 export default function ChatInterface() {
   const navigate = useNavigate();
@@ -36,6 +63,7 @@ export default function ChatInterface() {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [activePersonality, setActivePersonality] = useState(PERSONALITIES[0]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -75,7 +103,7 @@ export default function ChatInterface() {
           { role: 'user', parts: [{ text }] }
         ],
         config: {
-          systemInstruction: "You are 'The Sanctuary Guide', a serene, botanical-themed AI companion for emotional wellbeing. Your tone is gentle, poetic, and deeply validating. Use nature metaphors (gardens, roots, sunlight, seasons) to help the user explore their feelings. Keep responses concise but meaningful."
+          systemInstruction: activePersonality.instruction
         }
       });
 
@@ -119,11 +147,17 @@ export default function ChatInterface() {
       {/* Chat Section */}
       <div className="flex-1 flex flex-col h-full max-w-3xl mx-auto w-full glass-panel rounded-[2rem] shadow-2xl overflow-hidden relative z-10">
         {/* Mood Indicator Top Bar */}
-        <div className="px-8 py-4 bg-emerald-950/40 flex items-center justify-center gap-2 border-b border-outline-variant/5">
-          <Flower className="w-4 h-4 text-primary" />
-          <span className="text-xs uppercase tracking-[0.2em] font-bold text-secondary">
-            {isListening ? 'Listening to your voice...' : 'You seem calm today'}
-          </span>
+        <div className="px-8 py-4 bg-emerald-950/40 flex items-center justify-between gap-2 border-b border-outline-variant/5">
+          <div className="flex items-center gap-2">
+            <activePersonality.icon className={`w-4 h-4 ${activePersonality.color}`} />
+            <span className="text-xs uppercase tracking-[0.2em] font-bold text-secondary">
+              {isListening ? 'Listening to your voice...' : `${activePersonality.name} is here`}
+            </span>
+          </div>
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-highest/30 border border-outline-variant/10">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            <span className="text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest">Sanctuary Active</span>
+          </div>
         </div>
 
         {/* Messages Area */}
@@ -268,6 +302,33 @@ export default function ChatInterface() {
 
       {/* Sidebar Widgets */}
       <aside className="w-full md:w-64 space-y-6 relative z-10">
+        <div className="glass-panel p-6 rounded-3xl space-y-4">
+          <span className="text-[10px] uppercase tracking-widest text-secondary font-bold block mb-2">Choose Your Guide</span>
+          <div className="space-y-3">
+            {PERSONALITIES.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setActivePersonality(p)}
+                className={`w-full text-left p-3 rounded-2xl transition-all border ${
+                  activePersonality.id === p.id 
+                    ? 'bg-primary/10 border-primary/30 shadow-lg shadow-primary/5' 
+                    : 'bg-surface-container-highest/30 border-transparent hover:bg-surface-container-highest/60'
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-1">
+                  <p.icon className={`w-4 h-4 ${p.color}`} />
+                  <span className={`text-xs font-bold ${activePersonality.id === p.id ? 'text-primary' : 'text-on-surface'}`}>
+                    {p.name}
+                  </span>
+                </div>
+                <p className="text-[10px] text-on-surface-variant/60 leading-tight">
+                  {p.description}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="glass-panel p-6 rounded-3xl flex flex-col items-center text-center">
           <div className="relative w-24 h-24 mb-4 flex items-center justify-center">
             <motion.div 
