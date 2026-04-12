@@ -34,8 +34,8 @@ export default function LandingPage() {
           </p>
           <motion.button 
             onClick={() => navigate('/reflect')}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             className="px-12 py-5 bg-gradient-to-r from-primary to-secondary rounded-full text-on-primary font-bold text-lg transition-all duration-500 shadow-xl shadow-primary/20"
             aria-label="Start talking to the guide"
           >
@@ -171,13 +171,15 @@ export default function LandingPage() {
               Join thousands of others who have found peace in the garden of the mind.
             </p>
             <div className="pt-4">
-              <button 
+              <motion.button 
                 onClick={() => navigate('/reflect')}
-                className="px-12 py-5 bg-primary text-on-primary rounded-full font-bold text-lg shadow-2xl shadow-primary/20 hover:scale-105 transition-transform"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-12 py-5 bg-primary text-on-primary rounded-full font-bold text-lg shadow-2xl shadow-primary/20 transition-all duration-300"
                 aria-label="Begin your journey to peace"
               >
                 Begin Your Journey
-              </button>
+              </motion.button>
             </div>
           </div>
         </div>
