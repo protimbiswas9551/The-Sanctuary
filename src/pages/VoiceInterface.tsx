@@ -16,7 +16,7 @@ const TRACKS = [
     id: 'forest', 
     name: 'Morning Forest', 
     desc: 'Stable ambient sounds for relaxation.',
-    url: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=forest-with-birds-singing-nature-sounds-8105.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
     icon: Leaf,
     color: 'text-emerald-400'
   },
@@ -24,7 +24,7 @@ const TRACKS = [
     id: 'birds', 
     name: 'Bird Sanctuary', 
     desc: 'Cheerful chirping and morning songs.',
-    url: 'https://cdn.pixabay.com/download/audio/2021/11/25/audio_91b32e02f9.mp3?filename=birds-chirping-7511.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
     icon: Bird,
     color: 'text-yellow-400'
   },
@@ -32,7 +32,7 @@ const TRACKS = [
     id: 'meadow', 
     name: 'Peaceful Meadow', 
     desc: 'Gentle breeze through the wildflowers.',
-    url: 'https://cdn.pixabay.com/download/audio/2022/03/10/audio_c35278d32e.mp3?filename=wind-in-the-trees-11744.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
     icon: Sun,
     color: 'text-orange-400'
   },
@@ -40,7 +40,7 @@ const TRACKS = [
     id: 'ocean', 
     name: 'Ocean Waves', 
     desc: 'Rhythmic tides for peaceful sleep.',
-    url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_735c349603.mp3?filename=ocean-waves-11290.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
     icon: Waves,
     color: 'text-blue-400'
   },
@@ -48,7 +48,7 @@ const TRACKS = [
     id: 'rain', 
     name: 'Soft Rainfall', 
     desc: 'Gentle rain for a calm mind.',
-    url: 'https://cdn.pixabay.com/download/audio/2021/08/09/audio_88444c8690.mp3?filename=rain-on-window-7143.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3',
     icon: CloudRain,
     color: 'text-indigo-400'
   },
@@ -56,7 +56,7 @@ const TRACKS = [
     id: 'crickets', 
     name: 'Evening Crickets', 
     desc: 'The soothing sounds of a summer night.',
-    url: 'https://cdn.pixabay.com/download/audio/2022/03/10/audio_27606368d5.mp3?filename=crickets-chirping-at-night-11743.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',
     icon: Moon,
     color: 'text-purple-400'
   },
@@ -64,7 +64,7 @@ const TRACKS = [
     id: 'stream', 
     name: 'Mountain Stream', 
     desc: 'Crystal clear water flowing over stones.',
-    url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a7351b.mp3?filename=mountain-stream-11291.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3',
     icon: Wind,
     color: 'text-cyan-400'
   }
@@ -232,7 +232,6 @@ export default function VoiceInterface() {
         loop
         preload="auto"
         muted={false}
-        crossOrigin="anonymous"
         onLoadStart={() => {
           setIsLoading(true);
           setError(null);
