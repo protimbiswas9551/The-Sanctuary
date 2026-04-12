@@ -32,20 +32,19 @@ export default function LandingPage() {
           <p className="text-xl md:text-2xl text-emerald-50/90 font-light max-w-2xl mx-auto leading-relaxed drop-shadow-md">
             Talk to an AI that truly listens and understands. A safe space for your thoughts, anytime you need them.
           </p>
-          <div className="pt-8">
-            <motion.button 
-              onClick={() => navigate('/reflect')}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="px-12 py-5 bg-gradient-to-r from-primary to-secondary rounded-full text-on-primary font-bold text-lg transition-all duration-500 shadow-xl shadow-primary/20"
-            >
-              Start Talking
-            </motion.button>
-          </div>
+          <motion.button 
+            onClick={() => navigate('/reflect')}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="px-12 py-5 bg-gradient-to-r from-primary to-secondary rounded-full text-on-primary font-bold text-lg transition-all duration-500 shadow-xl shadow-primary/20"
+            aria-label="Start talking to the guide"
+          >
+            Start Talking
+          </motion.button>
         </motion.div>
 
         {/* Scroll Indicator */}
-        <div className="absolute bottom-10 flex flex-col items-center gap-4 opacity-60">
+        <div className="absolute bottom-10 flex flex-col items-center gap-4 opacity-80">
           <span className="text-[10px] uppercase tracking-[0.4em] font-bold text-emerald-300">Discover Peace</span>
           <div className="w-px h-12 bg-gradient-to-b from-emerald-400 to-transparent" />
         </div>
@@ -175,6 +174,7 @@ export default function LandingPage() {
               <button 
                 onClick={() => navigate('/reflect')}
                 className="px-12 py-5 bg-primary text-on-primary rounded-full font-bold text-lg shadow-2xl shadow-primary/20 hover:scale-105 transition-transform"
+                aria-label="Begin your journey to peace"
               >
                 Begin Your Journey
               </button>

@@ -147,7 +147,7 @@ export default function ChatInterface() {
       {/* Chat Section */}
       <div className="flex-1 flex flex-col h-full max-w-3xl mx-auto w-full glass-panel rounded-[2rem] shadow-2xl overflow-hidden relative z-10">
         {/* Mood Indicator Top Bar */}
-        <div className="px-8 py-4 bg-emerald-950/40 flex items-center justify-between gap-2 border-b border-outline-variant/5">
+        <div className="px-8 py-4 bg-emerald-950/40 flex items-center justify-between gap-2 border-b border-outline-variant/5" role="status" aria-live="polite">
           <div className="flex items-center gap-2">
             <activePersonality.icon className={`w-4 h-4 ${activePersonality.color}`} />
             <span className="text-xs uppercase tracking-[0.2em] font-bold text-secondary">
@@ -227,6 +227,8 @@ export default function ChatInterface() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="flex gap-4 max-w-[90%] md:max-w-[85%]"
+                role="status"
+                aria-label="AI is reflecting"
               >
                 <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shadow-inner">
                   <motion.div
@@ -266,6 +268,7 @@ export default function ChatInterface() {
           <div className="relative flex items-center gap-2">
             <button 
               onClick={startListening}
+              aria-label={isListening ? "Stop voice command" : "Start voice command"}
               className={`p-3 rounded-full transition-all duration-300 ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-surface-container-highest/50 text-on-surface-variant hover:bg-surface-container-highest'}`}
               title="Voice Command"
             >
@@ -276,12 +279,14 @@ export default function ChatInterface() {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(inputValue)}
+                aria-label="Message input"
                 className="w-full bg-surface-container-highest/50 border-none rounded-full py-4 pl-6 pr-16 text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/40 transition-all" 
                 placeholder={isListening ? "Listening..." : "Share your thoughts..."} 
                 type="text"
               />
               <button 
                 onClick={() => handleSendMessage(inputValue)}
+                aria-label="Send message"
                 className="absolute right-3 p-3 rounded-full bg-primary text-on-primary hover:scale-105 transition-transform"
               >
                 <Send className="w-5 h-5" />
@@ -309,6 +314,8 @@ export default function ChatInterface() {
               <button
                 key={p.id}
                 onClick={() => setActivePersonality(p)}
+                aria-label={`Select personality: ${p.name}`}
+                aria-current={activePersonality.id === p.id ? 'true' : 'false'}
                 className={`w-full text-left p-3 rounded-2xl transition-all border ${
                   activePersonality.id === p.id 
                     ? 'bg-primary/10 border-primary/30 shadow-lg shadow-primary/5' 

@@ -280,6 +280,7 @@ export default function MoodTracker() {
               />
               <button 
                 onClick={startListening}
+                aria-label={isListening ? "Stop voice input" : "Start voice input"}
                 className={`absolute right-0 top-0 p-3 rounded-full transition-all ${
                   isListening 
                     ? 'bg-red-500/20 text-red-400 animate-pulse' 
@@ -305,6 +306,7 @@ export default function MoodTracker() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => document.getElementById('photo-upload')?.click()}
+                  aria-label="Add photo to reflection"
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all text-xs font-medium ${
                     attachedPhoto 
                       ? 'bg-primary/20 border-primary text-primary' 
@@ -337,6 +339,8 @@ export default function MoodTracker() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setShowReminderInput(!showReminderInput)}
+                  aria-label="Set reminder for reflection"
+                  aria-expanded={showReminderInput}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all text-xs font-medium ${
                     reminderTime 
                       ? 'bg-primary/20 border-primary text-primary' 
@@ -353,6 +357,7 @@ export default function MoodTracker() {
                 whileTap={{ scale: 0.98 }}
                 onClick={handleGenerateInsight}
                 disabled={isGeneratingInsight}
+                aria-label="Generate AI insight from your reflection"
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 border border-primary/10 text-primary hover:bg-primary/20 transition-all text-xs font-bold"
               >
                 {isGeneratingInsight ? (
@@ -393,6 +398,8 @@ export default function MoodTracker() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setSelectedMood(mood.label)}
+                    aria-label={`Select mood: ${mood.label}`}
+                    aria-current={selectedMood === mood.label ? 'true' : 'false'}
                     className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-all border ${
                       selectedMood === mood.label
                         ? 'bg-primary/20 border-primary ring-2 ring-primary/20'
@@ -421,6 +428,8 @@ export default function MoodTracker() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => toggleTag(tag)}
+                    aria-label={`Toggle tag: ${tag}`}
+                    aria-current={selectedTags.includes(tag) ? 'true' : 'false'}
                     className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all border ${
                       selectedTags.includes(tag)
                         ? 'bg-primary/20 border-primary text-primary'
@@ -645,12 +654,14 @@ export default function MoodTracker() {
             <div className="flex items-center gap-1">
               <button 
                 onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                aria-label="Previous month"
                 className="p-1.5 rounded-full hover:bg-surface-container-highest text-on-surface-variant transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button 
                 onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                aria-label="Next month"
                 className="p-1.5 rounded-full hover:bg-surface-container-highest text-on-surface-variant transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />

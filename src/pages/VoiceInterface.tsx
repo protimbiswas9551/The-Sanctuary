@@ -181,6 +181,9 @@ export default function VoiceInterface() {
         <div className="relative w-full max-w-xs">
           <button 
             onClick={() => setShowMenu(!showMenu)}
+            aria-expanded={showMenu}
+            aria-haspopup="listbox"
+            aria-label="Select soundscape"
             className="w-full flex items-center justify-between px-6 py-3 rounded-2xl bg-surface-container-low/60 backdrop-blur-xl border border-outline-variant/20 text-on-surface hover:bg-surface-container-low transition-all"
           >
             <div className="flex items-center gap-3">
@@ -199,11 +202,13 @@ export default function VoiceInterface() {
                 className="absolute top-full mt-4 left-0 right-0 bg-surface-container-low/90 backdrop-blur-2xl border border-outline-variant/20 rounded-3xl p-3 shadow-2xl z-50 overflow-hidden"
               >
                 <div className="botanical-grain absolute inset-0 opacity-10" />
-                <div className="relative z-10 space-y-1 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                <div className="relative z-10 space-y-1 max-h-64 overflow-y-auto custom-scrollbar pr-1" role="listbox">
                   {TRACKS.map(track => (
                     <button
                       key={track.id}
                       onClick={() => selectTrack(track)}
+                      role="option"
+                      aria-selected={currentTrack.id === track.id}
                       className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${currentTrack.id === track.id ? 'bg-primary/10 border-primary/20' : 'hover:bg-surface-container-highest/50'}`}
                     >
                       <div className={`p-2 rounded-full bg-surface-container-highest ${track.color}`}>
@@ -318,7 +323,7 @@ export default function VoiceInterface() {
         <div className="flex flex-col items-center gap-8 w-full max-w-md">
           {/* Timer and Progress */}
           <div className="w-full space-y-2">
-            <div className="flex justify-between text-[10px] font-mono text-on-surface-variant tracking-widest uppercase">
+            <div className="flex justify-between text-[10px] font-mono text-on-surface-variant/80 tracking-widest uppercase">
               <span>{formatTime(currentTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>
@@ -336,6 +341,7 @@ export default function VoiceInterface() {
           <div className="w-full flex items-center gap-4 bg-surface-container-low/40 backdrop-blur-md p-4 rounded-2xl border border-outline-variant/10">
             <button 
               onClick={() => setIsMuted(!isMuted)}
+              aria-label={isMuted ? "Unmute" : "Mute"}
               className="text-on-surface-variant hover:text-primary transition-colors"
             >
               {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
@@ -346,13 +352,14 @@ export default function VoiceInterface() {
               max="1"
               step="0.01"
               value={volume}
+              aria-label="Volume"
               onChange={(e) => {
                 setVolume(parseFloat(e.target.value));
                 if (isMuted) setIsMuted(false);
               }}
               className="flex-1 h-1.5 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary"
             />
-            <span className="text-[10px] font-mono text-on-surface-variant w-8">
+            <span className="text-[10px] font-mono text-on-surface-variant/80 w-8">
               {Math.round(volume * 100)}%
             </span>
           </div>
@@ -381,6 +388,7 @@ export default function VoiceInterface() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/')}
+              aria-label="Return home"
               className="p-4 rounded-full bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-primary transition-colors"
             >
               <Home className="w-6 h-6" />

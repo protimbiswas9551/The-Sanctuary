@@ -284,6 +284,7 @@ export default function NotesScreen() {
             <span className="text-xs font-bold tracking-[0.1em] text-secondary uppercase">Archive</span>
             <button 
               onClick={createNewNote}
+              aria-label="Create new reflection"
               className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-all"
             >
               <Plus className="w-4 h-4" />
@@ -327,6 +328,9 @@ export default function NotesScreen() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 onClick={() => selectNote(note)}
+                role="button"
+                aria-current={activeNoteId === note.id ? 'true' : 'false'}
+                aria-label={`Select reflection: ${note.title}`}
                 className={`group p-5 rounded-[1.5rem] transition-all duration-500 cursor-pointer relative overflow-hidden border ${
                   activeNoteId === note.id 
                     ? 'bg-primary/5 border-primary/20 shadow-lg shadow-primary/5' 
@@ -348,6 +352,7 @@ export default function NotesScreen() {
                 
                 <button 
                   onClick={(e) => deleteNote(note.id, e)}
+                  aria-label={`Delete reflection: ${note.title}`}
                   className="absolute right-3 bottom-3 p-2 rounded-full bg-surface-container-low/0 group-hover:bg-surface-container-low/80 text-on-surface-variant/0 group-hover:text-red-400/60 hover:text-red-400 hover:scale-110 transition-all duration-300 z-20"
                   title="Remove from garden"
                 >
@@ -428,6 +433,7 @@ export default function NotesScreen() {
                   alert('Nothing to share yet.');
                 }
               }}
+              aria-label="Share this reflection"
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface-container-highest text-on-surface text-sm font-medium hover:bg-surface-bright transition-all"
             >
               <Share2 className="w-4 h-4" />
@@ -435,6 +441,7 @@ export default function NotesScreen() {
             </button>
             <button 
               onClick={handleSave}
+              aria-label="Save this reflection"
               className="flex items-center gap-2 px-6 py-2 rounded-full bg-gradient-to-r from-primary to-secondary text-on-primary text-sm font-bold shadow-lg shadow-primary/10 hover:scale-105 active:scale-95 transition-all"
             >
               <Save className="w-4 h-4" />
@@ -460,7 +467,8 @@ export default function NotesScreen() {
             <button 
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => formatText('bold')}
-              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
+              aria-label="Format Bold"
+              className="text-on-surface-variant/80 hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
               title="Bold"
             >
               <Bold className="w-5 h-5" />
@@ -468,7 +476,8 @@ export default function NotesScreen() {
             <button 
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => formatText('italic')}
-              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
+              aria-label="Format Italic"
+              className="text-on-surface-variant/80 hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
               title="Italic"
             >
               <Italic className="w-5 h-5" />
@@ -476,7 +485,8 @@ export default function NotesScreen() {
             <button 
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => formatText('list')}
-              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
+              aria-label="Format List"
+              className="text-on-surface-variant/80 hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
               title="List"
             >
               <List className="w-5 h-5" />
@@ -484,7 +494,8 @@ export default function NotesScreen() {
             <button 
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => formatText('quote')}
-              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
+              aria-label="Format Quote"
+              className="text-on-surface-variant/80 hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
               title="Quote"
             >
               <Quote className="w-5 h-5" />
@@ -493,7 +504,8 @@ export default function NotesScreen() {
             <button 
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => formatText('image')}
-              className="text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
+              aria-label="Insert Image"
+              className="text-on-surface-variant/80 hover:text-primary transition-colors p-2 hover:bg-surface-container-highest rounded-lg active:scale-90"
               title="Image"
             >
               <ImageIcon className="w-5 h-5" />
@@ -529,7 +541,7 @@ export default function NotesScreen() {
           )}
         </div>
 
-        <div className="mt-8 max-w-4xl w-full mx-auto flex items-center justify-between text-on-surface-variant/60 text-[10px] tracking-wider uppercase font-bold">
+        <div className="mt-8 max-w-4xl w-full mx-auto flex items-center justify-between text-on-surface-variant/80 text-[10px] tracking-wider uppercase font-bold">
           <div className="flex items-center gap-6">
             <span>Words: {wordCount}</span>
             <span>Chars: {charCount}</span>
