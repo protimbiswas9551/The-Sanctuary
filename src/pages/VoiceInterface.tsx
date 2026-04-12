@@ -8,7 +8,7 @@ const TRACKS = [
     id: 'zen', 
     name: 'Zen Garden', 
     desc: 'Soft ambient melodies for deep focus.',
-    url: 'https://actions.google.com/sounds/v1/ambient/ambient_hum_loop.ogg',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     icon: Sparkles,
     color: 'text-primary'
   },
@@ -16,7 +16,7 @@ const TRACKS = [
     id: 'forest', 
     name: 'Morning Forest', 
     desc: 'Stable ambient sounds for relaxation.',
-    url: 'https://actions.google.com/sounds/v1/ambient/forest_morning.ogg',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
     icon: Leaf,
     color: 'text-emerald-400'
   },
@@ -24,7 +24,7 @@ const TRACKS = [
     id: 'birds', 
     name: 'Bird Sanctuary', 
     desc: 'Cheerful chirping and morning songs.',
-    url: 'https://actions.google.com/sounds/v1/ambient/morning_birds.ogg',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
     icon: Bird,
     color: 'text-yellow-400'
   },
@@ -32,7 +32,7 @@ const TRACKS = [
     id: 'meadow', 
     name: 'Peaceful Meadow', 
     desc: 'Gentle breeze through the wildflowers.',
-    url: 'https://actions.google.com/sounds/v1/ambient/meadow_ambience.ogg',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
     icon: Sun,
     color: 'text-orange-400'
   },
@@ -40,7 +40,7 @@ const TRACKS = [
     id: 'ocean', 
     name: 'Ocean Waves', 
     desc: 'Rhythmic tides for peaceful sleep.',
-    url: 'https://actions.google.com/sounds/v1/ambient/ocean_waves.ogg',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
     icon: Waves,
     color: 'text-blue-400'
   },
@@ -48,7 +48,7 @@ const TRACKS = [
     id: 'rain', 
     name: 'Soft Rainfall', 
     desc: 'Gentle rain for a calm mind.',
-    url: 'https://actions.google.com/sounds/v1/ambient/rain_on_roof.ogg',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3',
     icon: CloudRain,
     color: 'text-indigo-400'
   },
@@ -56,7 +56,7 @@ const TRACKS = [
     id: 'crickets', 
     name: 'Evening Crickets', 
     desc: 'The soothing sounds of a summer night.',
-    url: 'https://actions.google.com/sounds/v1/ambient/crickets_chirping.ogg',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',
     icon: Moon,
     color: 'text-purple-400'
   },
@@ -64,7 +64,7 @@ const TRACKS = [
     id: 'stream', 
     name: 'Mountain Stream', 
     desc: 'Crystal clear water flowing over stones.',
-    url: 'https://actions.google.com/sounds/v1/ambient/mountain_stream.ogg',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3',
     icon: Wind,
     color: 'text-cyan-400'
   }
@@ -117,20 +117,27 @@ export default function VoiceInterface() {
     };
 
     const updateVisualizer = () => {
-      if (!analyserRef.current) return;
+      let currentAmplitude = 0;
       
-      const bufferLength = analyserRef.current.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      analyserRef.current.getByteFrequencyData(dataArray);
-      
-      let sum = 0;
-      for (let i = 0; i < bufferLength; i++) {
-        sum += dataArray[i];
+      if (analyserRef.current) {
+        const bufferLength = analyserRef.current.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyserRef.current.getByteFrequencyData(dataArray);
+        
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        currentAmplitude = Math.min(average / 128, 1);
       }
-      const average = sum / bufferLength;
-      const normalizedAmplitude = Math.min(average / 128, 1);
-      setAmplitude(normalizedAmplitude);
+
+      // Fallback to simulated amplitude if real data is blocked or silent
+      if (currentAmplitude === 0 && isPlaying) {
+        currentAmplitude = 0.1 + Math.sin(Date.now() / 500) * 0.05;
+      }
       
+      setAmplitude(currentAmplitude);
       animationFrameRef.current = requestAnimationFrame(updateVisualizer);
     };
 
@@ -201,7 +208,6 @@ export default function VoiceInterface() {
         src={currentTrack.url}
         loop
         preload="auto"
-        crossOrigin="anonymous"
         onLoadStart={() => {
           setIsLoading(true);
           setError(null);
