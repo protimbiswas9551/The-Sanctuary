@@ -24,6 +24,8 @@ interface JournalEntry {
   date: string;
   mood: string;
   tags: string[];
+  photo?: string;
+  reminder?: string;
   reactions?: { [emoji: string]: number };
 }
 
@@ -44,6 +46,9 @@ export default function MoodTracker() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
+  const [attachedPhoto, setAttachedPhoto] = useState<string | null>(null);
+  const [reminderTime, setReminderTime] = useState<string | null>(null);
+  const [showReminderInput, setShowReminderInput] = useState(false);
   const [savedEntries, setSavedEntries] = useState<JournalEntry[]>([]);
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [prompts, setPrompts] = useState<string[]>([]);
@@ -74,7 +79,9 @@ export default function MoodTracker() {
       text: entry,
       date: new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }),
       mood: selectedMood,
-      tags: selectedTags
+      tags: selectedTags,
+      photo: attachedPhoto || undefined,
+      reminder: reminderTime || undefined
     };
     
     const updatedEntries = [newEntry, ...savedEntries];
@@ -85,6 +92,9 @@ export default function MoodTracker() {
       setEntry('');
       setSelectedMood(null);
       setSelectedTags([]);
+      setAttachedPhoto(null);
+      setReminderTime(null);
+      setShowReminderInput(false);
       setIsSaving(false);
       alert('Your thought has been rooted in the garden.');
     }, 800);
@@ -190,12 +200,20 @@ export default function MoodTracker() {
     }
   };
 
-  const handleAddPhoto = () => {
-    alert("Photo integration would allow you to upload a visual memory to this entry. (Feature coming soon)");
+  const handleAddPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAttachedPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleSetReminder = () => {
-    alert("Reminder set! We'll nudge you to check back on this thought later.");
+  const handleSetReminder = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setReminderTime(e.target.value);
+    setShowReminderInput(false);
   };
 
   useEffect(() => {
@@ -275,24 +293,61 @@ export default function MoodTracker() {
 
             {/* Quick Actions */}
             <div className="flex flex-wrap gap-3 mt-4">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleAddPhoto}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-highest/40 border border-outline-variant/10 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest/60 transition-all text-xs font-medium"
-              >
-                <ImageIcon className="w-3.5 h-3.5" />
-                Add Photo
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleSetReminder}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-highest/40 border border-outline-variant/10 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest/60 transition-all text-xs font-medium"
-              >
-                <Bell className="w-3.5 h-3.5" />
-                Set Reminder
-              </motion.button>
+              <div className="relative">
+                <input 
+                  type="file" 
+                  id="photo-upload" 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={handleAddPhoto}
+                />
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => document.getElementById('photo-upload')?.click()}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all text-xs font-medium ${
+                    attachedPhoto 
+                      ? 'bg-primary/20 border-primary text-primary' 
+                      : 'bg-surface-container-highest/40 border-outline-variant/10 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest/60'
+                  }`}
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  {attachedPhoto ? 'Photo Added' : 'Add Photo'}
+                </motion.button>
+              </div>
+
+              <div className="relative">
+                <AnimatePresence>
+                  {showReminderInput && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                      className="absolute bottom-full mb-2 left-0 z-50 bg-surface-container-high p-3 rounded-2xl border border-outline-variant/20 shadow-2xl"
+                    >
+                      <input 
+                        type="datetime-local" 
+                        className="bg-transparent border-none text-xs text-on-surface focus:ring-0"
+                        onChange={handleSetReminder}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowReminderInput(!showReminderInput)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all text-xs font-medium ${
+                    reminderTime 
+                      ? 'bg-primary/20 border-primary text-primary' 
+                      : 'bg-surface-container-highest/40 border-outline-variant/10 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest/60'
+                  }`}
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  {reminderTime ? `Reminder: ${new Date(reminderTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Set Reminder'}
+                </motion.button>
+              </div>
+
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -308,6 +363,22 @@ export default function MoodTracker() {
                 Generate Insight
               </motion.button>
             </div>
+
+            {attachedPhoto && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mt-4 relative w-24 h-24 rounded-2xl overflow-hidden border border-primary/20"
+              >
+                <img src={attachedPhoto} alt="Attached" className="w-full h-full object-cover" />
+                <button 
+                  onClick={() => setAttachedPhoto(null)}
+                  className="absolute top-1 right-1 p-1 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </motion.div>
+            )}
 
             {/* Mood Selection */}
             <div className="mt-6">
@@ -503,6 +574,19 @@ export default function MoodTracker() {
                       <span className="text-on-surface-variant text-[10px] uppercase tracking-widest">{entry.date}</span>
                     </div>
                     <p className="text-on-surface text-sm mb-4 line-clamp-3 leading-relaxed">{entry.text}</p>
+                    
+                    {entry.photo && (
+                      <div className="mb-4 rounded-xl overflow-hidden h-32 border border-outline-variant/10">
+                        <img src={entry.photo} alt="Reflection" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+
+                    {entry.reminder && (
+                      <div className="mb-4 flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/5 p-2 rounded-lg border border-primary/10">
+                        <Bell className="w-3 h-3" />
+                        Reminder: {new Date(entry.reminder).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    )}
                     
                     <div className="flex flex-col gap-4 mt-auto">
                       {entry.tags && entry.tags.length > 0 && (
