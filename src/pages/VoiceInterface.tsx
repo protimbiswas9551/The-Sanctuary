@@ -74,7 +74,7 @@ export default function VoiceInterface() {
   const navigate = useNavigate();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(0.5);
+  const [volume, setVolume] = useState(1.0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [currentTrack, setCurrentTrack] = useState(TRACKS[0]);
@@ -83,6 +83,7 @@ export default function VoiceInterface() {
   const [frequencyData, setFrequencyData] = useState<number[]>(new Array(8).fill(0));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -104,18 +105,17 @@ export default function VoiceInterface() {
           analyserRef.current.fftSize = 256;
           analyserRef.current.smoothingTimeConstant = 0.8;
           
-          if (audio && !sourceRef.current) {
-            sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
-            sourceRef.current.connect(analyserRef.current);
-            analyserRef.current.connect(audioContextRef.current.destination);
-          }
+          // NOTE: We are NOT connecting the audio element to the AudioContext here.
+          // Connecting a cross-origin audio element to an AudioContext without proper CORS
+          // headers often results in silence. Instead, we let the audio element play
+          // directly to the speakers and use simulated data for the visualizer.
         }
         
         if (audioContextRef.current.state === 'suspended') {
           audioContextRef.current.resume();
         }
       } catch (err) {
-        console.warn("AudioContext setup failed, falling back to simulated visuals:", err);
+        console.warn("AudioContext setup failed:", err);
       }
     };
 
@@ -167,12 +167,23 @@ export default function VoiceInterface() {
       setIsLoading(true);
       setError(null);
       
+      if (audio) {
+        audio.volume = volume;
+        audio.muted = isMuted;
+        console.log("Audio State:", { volume: audio.volume, muted: audio.muted, src: audio.src });
+      }
+
+      console.log("Attempting to play:", currentTrack.url);
+      audio.volume = volume;
+      audio.muted = false;
+      
       audio.play().then(() => {
+        console.log("Playback started successfully");
         setIsLoading(false);
         updateVisualizer();
       }).catch(err => {
+        console.error("Playback failed:", err);
         if (err.name !== 'AbortError') {
-          console.error("Playback failed:", err);
           setError("Playback blocked. Please tap 'Enter Soundscape' again.");
           setIsPlaying(false);
         }
@@ -210,9 +221,12 @@ export default function VoiceInterface() {
   }, [volume, isMuted]);
 
   const selectTrack = (track: typeof TRACKS[0]) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.load(); // Force reload the element
+    }
     setCurrentTrack(track);
     setShowMenu(false);
-    // The useEffect will handle playing the new track because currentTrack is a dependency
     setIsPlaying(true);
   };
 
@@ -232,6 +246,9 @@ export default function VoiceInterface() {
         loop
         preload="auto"
         muted={false}
+        autoPlay={false}
+        controls={debugMode}
+        className={debugMode ? "fixed bottom-4 left-4 z-[100] bg-white rounded-lg" : "absolute opacity-0 pointer-events-none"}
         onLoadStart={() => {
           setIsLoading(true);
           setError(null);
@@ -508,6 +525,26 @@ export default function VoiceInterface() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => {
+                const context = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
+                const osc = context.createOscillator();
+                const gain = context.createGain();
+                osc.connect(gain);
+                gain.connect(context.destination);
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.5);
+                osc.stop(context.currentTime + 0.5);
+                console.log("Test beep triggered");
+              }}
+              className="p-4 rounded-full bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-primary transition-colors"
+              title="Test System Sound"
+            >
+              <Volume2 className="w-6 h-6" />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
                 const testAudio = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
                 testAudio.volume = 0.3;
                 testAudio.play().catch(err => {
@@ -519,6 +556,16 @@ export default function VoiceInterface() {
               title="Troubleshoot Sound"
             >
               <Music className="w-6 h-6" />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setDebugMode(!debugMode)}
+              className={`p-4 rounded-full border transition-colors ${debugMode ? 'bg-primary text-on-primary border-primary' : 'bg-surface-container-low border-outline-variant/20 text-on-surface-variant hover:text-primary'}`}
+              title="Toggle Debug Controls"
+            >
+              <Wind className="w-6 h-6" />
             </motion.button>
 
             <motion.button
