@@ -80,6 +80,7 @@ export default function VoiceInterface() {
   const [currentTrack, setCurrentTrack] = useState(TRACKS[0]);
   const [showMenu, setShowMenu] = useState(false);
   const [amplitude, setAmplitude] = useState(0);
+  const [frequencyData, setFrequencyData] = useState<number[]>(new Array(8).fill(0));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -93,9 +94,6 @@ export default function VoiceInterface() {
     if (!audio) return;
 
     const setupAudioContext = () => {
-      // Temporarily disabled to troubleshoot silence issues
-      return;
-      /*
       try {
         if (!audioContextRef.current) {
           const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -104,6 +102,7 @@ export default function VoiceInterface() {
           audioContextRef.current = new AudioContextClass();
           analyserRef.current = audioContextRef.current.createAnalyser();
           analyserRef.current.fftSize = 256;
+          analyserRef.current.smoothingTimeConstant = 0.8;
           
           if (audio && !sourceRef.current) {
             sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
@@ -116,33 +115,48 @@ export default function VoiceInterface() {
           audioContextRef.current.resume();
         }
       } catch (err) {
-        console.warn("AudioContext setup failed, falling back to standard playback:", err);
+        console.warn("AudioContext setup failed, falling back to simulated visuals:", err);
       }
-      */
     };
 
     const updateVisualizer = () => {
       let currentAmplitude = 0;
+      let currentFrequencies = new Array(8).fill(0);
       
       if (analyserRef.current) {
         const bufferLength = analyserRef.current.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         analyserRef.current.getByteFrequencyData(dataArray);
         
+        // Calculate amplitude
         let sum = 0;
         for (let i = 0; i < bufferLength; i++) {
           sum += dataArray[i];
         }
         const average = sum / bufferLength;
         currentAmplitude = Math.min(average / 128, 1);
+
+        // Extract 8 frequency bands for the UI
+        const step = Math.floor(bufferLength / 8);
+        for (let i = 0; i < 8; i++) {
+          let bandSum = 0;
+          for (let j = 0; j < step; j++) {
+            bandSum += dataArray[i * step + j];
+          }
+          currentFrequencies[i] = (bandSum / step) / 255;
+        }
       }
 
-      // Fallback to simulated amplitude if real data is blocked or silent
+      // Fallback to simulated data if real data is blocked or silent
       if (currentAmplitude === 0 && isPlaying) {
         currentAmplitude = 0.1 + Math.sin(Date.now() / 500) * 0.05;
+        currentFrequencies = currentFrequencies.map((_, i) => 
+          0.2 + Math.sin((Date.now() + i * 200) / 400) * 0.15
+        );
       }
       
       setAmplitude(currentAmplitude);
+      setFrequencyData(currentFrequencies);
       animationFrameRef.current = requestAnimationFrame(updateVisualizer);
     };
 
@@ -218,6 +232,7 @@ export default function VoiceInterface() {
         loop
         preload="auto"
         muted={false}
+        crossOrigin="anonymous"
         onLoadStart={() => {
           setIsLoading(true);
           setError(null);
@@ -341,17 +356,18 @@ export default function VoiceInterface() {
                     key={`ring-${i}`}
                     initial={{ opacity: 0, scale: 1 }}
                     animate={{ 
-                      opacity: isPlaying ? [0, 0.2 + amplitude * 0.1, 0] : 0,
-                      scale: isPlaying ? [1, 1.5 + i * 0.2 + amplitude * 0.5, 2 + amplitude] : 1,
+                      opacity: isPlaying ? [0, 0.15 + (frequencyData[i % 8] || 0) * 0.2, 0] : 0,
+                      scale: isPlaying ? [1, 1.4 + i * 0.3 + amplitude * 0.8, 2.2 + amplitude * 1.2] : 1,
+                      borderWidth: isPlaying ? [`${1}px`, `${2 + amplitude * 4}px`, `${1}px`] : "1px"
                     }}
                     exit={{ opacity: 0 }}
                     transition={{ 
-                      duration: 4 - amplitude,
+                      duration: 3.5 - amplitude * 1.5,
                       repeat: Infinity,
-                      delay: i * 1.2,
+                      delay: i * 0.8,
                       ease: "easeOut"
                     }}
-                    className="absolute inset-0 rounded-full border border-primary/30 pointer-events-none"
+                    className="absolute inset-0 rounded-full border border-primary/40 pointer-events-none"
                   />
                 ))}
               </>
@@ -361,19 +377,19 @@ export default function VoiceInterface() {
           {/* The Core Glowing Orb - Pulses with music */}
           <motion.div 
             animate={{ 
-              scale: isPlaying ? [1, 1.05 + amplitude * 0.1, 1] : 1,
+              scale: isPlaying ? [1, 1.02 + amplitude * 0.15, 1] : 1,
               boxShadow: isPlaying ? [
-                `0 0 80px ${20 + amplitude * 40}px rgba(115, 219, 154, 0.1)`,
-                `0 0 160px ${60 + amplitude * 80}px rgba(115, 219, 154, ${0.25 + amplitude * 0.2})`,
-                `0 0 80px ${20 + amplitude * 40}px rgba(115, 219, 154, 0.1)`
+                `0 0 ${60 + amplitude * 40}px ${10 + amplitude * 30}px rgba(115, 219, 154, 0.1)`,
+                `0 0 ${180 + amplitude * 120}px ${80 + amplitude * 100}px rgba(115, 219, 154, ${0.2 + amplitude * 0.3})`,
+                `0 0 ${60 + amplitude * 40}px ${10 + amplitude * 30}px rgba(115, 219, 154, 0.1)`
               ] : "0 0 80px 20px rgba(115, 219, 154, 0.1)"
             }}
             transition={{ 
-              duration: isPlaying ? 4 - amplitude * 2 : 4, 
+              duration: isPlaying ? 3 - amplitude * 1.5 : 4, 
               repeat: Infinity, 
               ease: "easeInOut" 
             }}
-            className="w-56 h-56 md:w-72 md:h-72 rounded-full bg-emerald-900/20 flex items-center justify-center relative overflow-hidden border border-primary/20"
+            className="w-56 h-56 md:w-72 md:h-72 rounded-full bg-emerald-900/20 flex items-center justify-center relative overflow-hidden border border-primary/30"
           >
             {/* Texture Overlay */}
             <div className="absolute inset-0 opacity-30 mix-blend-overlay">
@@ -385,22 +401,22 @@ export default function VoiceInterface() {
               />
             </div>
 
-            {/* Subtle Wave Animation */}
+            {/* Subtle Wave Animation - Reacts to frequency data */}
             {isPlaying && (
-              <div className="absolute inset-0 flex items-end justify-center opacity-20">
-                {[...Array(12)].map((_, i) => (
+              <div className="absolute inset-0 flex items-end justify-center opacity-30 pb-8">
+                {frequencyData.map((val, i) => (
                   <motion.div
                     key={`wave-${i}`}
                     animate={{ 
-                      height: [`${20 + amplitude * 10}%`, `${60 + amplitude * 40}%`, `${20 + amplitude * 10}%`],
+                      height: [`${10 + val * 40}%`, `${30 + val * 60}%`, `${10 + val * 40}%`],
+                      opacity: [0.2, 0.5, 0.2]
                     }}
                     transition={{ 
-                      duration: (1.5 + Math.random()) / (1 + amplitude),
+                      duration: 0.5 + Math.random() * 0.5,
                       repeat: Infinity,
-                      delay: i * 0.1,
                       ease: "easeInOut"
                     }}
-                    className="w-1 mx-0.5 bg-primary rounded-full"
+                    className="w-1.5 mx-1 bg-primary rounded-full shadow-[0_0_10px_rgba(115,219,154,0.5)]"
                   />
                 ))}
               </div>
