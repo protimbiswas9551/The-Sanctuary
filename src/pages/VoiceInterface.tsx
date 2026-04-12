@@ -79,14 +79,54 @@ export default function VoiceInterface() {
   const [duration, setDuration] = useState(0);
   const [currentTrack, setCurrentTrack] = useState(TRACKS[0]);
   const [showMenu, setShowMenu] = useState(false);
+  const [amplitude, setAmplitude] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    const setupAudioContext = () => {
+      if (!audioContextRef.current) {
+        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+        audioContextRef.current = new AudioContextClass();
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 256;
+        sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
+        sourceRef.current.connect(analyserRef.current);
+        analyserRef.current.connect(audioContextRef.current.destination);
+      }
+      
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
+    };
+
+    const updateVisualizer = () => {
+      if (!analyserRef.current) return;
+      
+      const bufferLength = analyserRef.current.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyserRef.current.getByteFrequencyData(dataArray);
+      
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        sum += dataArray[i];
+      }
+      const average = sum / bufferLength;
+      const normalizedAmplitude = Math.min(average / 128, 1); // Normalize to 0-1
+      setAmplitude(normalizedAmplitude);
+      
+      animationFrameRef.current = requestAnimationFrame(updateVisualizer);
+    };
+
     // Handle play/pause
     if (isPlaying) {
+      setupAudioContext();
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(err => {
@@ -98,9 +138,20 @@ export default function VoiceInterface() {
           }
         });
       }
+      updateVisualizer();
     } else {
       audio.pause();
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      setAmplitude(0);
     }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
   }, [isPlaying, currentTrack]); // Re-run if track changes to ensure it plays
 
   useEffect(() => {
@@ -236,12 +287,12 @@ export default function VoiceInterface() {
                     key={`ring-${i}`}
                     initial={{ opacity: 0, scale: 1 }}
                     animate={{ 
-                      opacity: [0, 0.2, 0],
-                      scale: [1, 1.5 + i * 0.2, 2],
+                      opacity: isPlaying ? [0, 0.2 + amplitude * 0.1, 0] : 0,
+                      scale: isPlaying ? [1, 1.5 + i * 0.2 + amplitude * 0.5, 2 + amplitude] : 1,
                     }}
                     exit={{ opacity: 0 }}
                     transition={{ 
-                      duration: 4,
+                      duration: 4 - amplitude,
                       repeat: Infinity,
                       delay: i * 1.2,
                       ease: "easeOut"
@@ -256,15 +307,15 @@ export default function VoiceInterface() {
           {/* The Core Glowing Orb - Pulses with music */}
           <motion.div 
             animate={{ 
-              scale: isPlaying ? [1, 1.05, 1] : 1,
+              scale: isPlaying ? [1, 1.05 + amplitude * 0.1, 1] : 1,
               boxShadow: isPlaying ? [
-                "0 0 80px 20px rgba(115, 219, 154, 0.1)",
-                "0 0 160px 60px rgba(115, 219, 154, 0.25)",
-                "0 0 80px 20px rgba(115, 219, 154, 0.1)"
+                `0 0 80px ${20 + amplitude * 40}px rgba(115, 219, 154, 0.1)`,
+                `0 0 160px ${60 + amplitude * 80}px rgba(115, 219, 154, ${0.25 + amplitude * 0.2})`,
+                `0 0 80px ${20 + amplitude * 40}px rgba(115, 219, 154, 0.1)`
               ] : "0 0 80px 20px rgba(115, 219, 154, 0.1)"
             }}
             transition={{ 
-              duration: 4, 
+              duration: isPlaying ? 4 - amplitude * 2 : 4, 
               repeat: Infinity, 
               ease: "easeInOut" 
             }}
@@ -287,10 +338,10 @@ export default function VoiceInterface() {
                   <motion.div
                     key={`wave-${i}`}
                     animate={{ 
-                      height: ["20%", "60%", "20%"],
+                      height: [`${20 + amplitude * 10}%`, `${60 + amplitude * 40}%`, `${20 + amplitude * 10}%`],
                     }}
                     transition={{ 
-                      duration: 1.5 + Math.random(),
+                      duration: (1.5 + Math.random()) / (1 + amplitude),
                       repeat: Infinity,
                       delay: i * 0.1,
                       ease: "easeInOut"
