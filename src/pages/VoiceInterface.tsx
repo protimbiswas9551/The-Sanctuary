@@ -8,7 +8,7 @@ const TRACKS = [
     id: 'zen', 
     name: 'Zen Garden', 
     desc: 'Soft ambient melodies for deep focus.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    url: 'https://actions.google.com/sounds/v1/ambient/ambient_hum_loop.ogg',
     icon: Sparkles,
     color: 'text-primary'
   },
@@ -16,7 +16,7 @@ const TRACKS = [
     id: 'forest', 
     name: 'Morning Forest', 
     desc: 'Stable ambient sounds for relaxation.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    url: 'https://actions.google.com/sounds/v1/ambient/forest_morning.ogg',
     icon: Leaf,
     color: 'text-emerald-400'
   },
@@ -24,7 +24,7 @@ const TRACKS = [
     id: 'birds', 
     name: 'Bird Sanctuary', 
     desc: 'Cheerful chirping and morning songs.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    url: 'https://actions.google.com/sounds/v1/ambient/morning_birds.ogg',
     icon: Bird,
     color: 'text-yellow-400'
   },
@@ -32,7 +32,7 @@ const TRACKS = [
     id: 'meadow', 
     name: 'Peaceful Meadow', 
     desc: 'Gentle breeze through the wildflowers.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+    url: 'https://actions.google.com/sounds/v1/ambient/meadow_ambience.ogg',
     icon: Sun,
     color: 'text-orange-400'
   },
@@ -40,7 +40,7 @@ const TRACKS = [
     id: 'ocean', 
     name: 'Ocean Waves', 
     desc: 'Rhythmic tides for peaceful sleep.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
+    url: 'https://actions.google.com/sounds/v1/ambient/ocean_waves.ogg',
     icon: Waves,
     color: 'text-blue-400'
   },
@@ -48,7 +48,7 @@ const TRACKS = [
     id: 'rain', 
     name: 'Soft Rainfall', 
     desc: 'Gentle rain for a calm mind.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3',
+    url: 'https://actions.google.com/sounds/v1/ambient/rain_on_roof.ogg',
     icon: CloudRain,
     color: 'text-indigo-400'
   },
@@ -56,7 +56,7 @@ const TRACKS = [
     id: 'crickets', 
     name: 'Evening Crickets', 
     desc: 'The soothing sounds of a summer night.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',
+    url: 'https://actions.google.com/sounds/v1/ambient/crickets_chirping.ogg',
     icon: Moon,
     color: 'text-purple-400'
   },
@@ -64,7 +64,7 @@ const TRACKS = [
     id: 'stream', 
     name: 'Mountain Stream', 
     desc: 'Crystal clear water flowing over stones.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3',
+    url: 'https://actions.google.com/sounds/v1/ambient/mountain_stream.ogg',
     icon: Wind,
     color: 'text-cyan-400'
   }
@@ -219,9 +219,14 @@ export default function VoiceInterface() {
           console.error("Audio error:", {
             code: audioErr?.code,
             message: audioErr?.message,
-            track: currentTrack.name
+            track: currentTrack.name,
+            url: currentTrack.url
           });
-          setError("The audio track could not be loaded. Please try another one.");
+          
+          let errorMessage = "The audio track could not be loaded.";
+          if (audioErr?.code === 4) errorMessage = "The audio format is not supported or the link is broken.";
+          
+          setError(errorMessage);
           setIsPlaying(false);
           setIsLoading(false);
         }}
