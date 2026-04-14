@@ -57,6 +57,7 @@ export default function MoodTracker() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showBreathing, setShowBreathing] = useState(false);
+  const [activeGuide, setActiveGuide] = useState('The Listener');
   const [streak, setStreak] = useState(0);
   const [showStreakCelebration, setShowStreakCelebration] = useState(false);
 
@@ -192,7 +193,8 @@ export default function MoodTracker() {
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Based on the user's recent journaling history and current mood, suggest 3 personalized, deep, and therapeutic journaling prompts.
+        contents: `You are ${activeGuide}. 
+        Based on the user's recent journaling history and current mood, suggest 3 personalized, deep, and therapeutic journaling prompts that reflect your personality.
         
         Recent Context:
         ${recentContext}
@@ -283,6 +285,23 @@ export default function MoodTracker() {
   const filteredEntries = filterTag 
     ? savedEntries.filter(e => e.tags?.includes(filterTag))
     : savedEntries;
+
+  const progressMetrics = React.useMemo(() => {
+    if (savedEntries.length === 0) return { calm: 0, clarity: 0 };
+
+    // Inner Calm: % of positive/reflective moods in last 10 entries
+    const last10 = savedEntries.slice(0, 10);
+    const positiveMoods = ['Peaceful', 'Grateful', 'Reflective', 'Energized'];
+    const positiveCount = last10.filter(e => positiveMoods.includes(e.mood)).length;
+    const calm = Math.round((positiveCount / Math.min(last10.length, 10)) * 100);
+
+    // Clarity: Based on streak and entry count
+    const streakBonus = Math.min(streak * 10, 70);
+    const countBonus = Math.min(savedEntries.length * 2, 30);
+    const clarity = Math.min(streakBonus + countBonus, 100);
+
+    return { calm, clarity };
+  }, [savedEntries, streak]);
 
   return (
     <div className="relative min-h-screen pt-32 pb-32 px-6 md:px-12 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
@@ -843,14 +862,22 @@ export default function MoodTracker() {
           <motion.div 
             key={guide.name}
             whileHover={{ scale: 1.02 }}
-            className="surface-container-high hover:bg-surface-bright rounded-2xl p-6 transition-all duration-500 border border-outline-variant/10 cursor-pointer"
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setActiveGuide(guide.name)}
+            className={`rounded-2xl p-6 transition-all duration-500 border cursor-pointer ${
+              activeGuide === guide.name 
+                ? 'bg-primary/10 border-primary/30 shadow-lg shadow-primary/5' 
+                : 'surface-container-high hover:bg-surface-bright border-outline-variant/10'
+            }`}
           >
             <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-full bg-surface-container-highest flex items-center justify-center text-${guide.color}`}>
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                activeGuide === guide.name ? 'bg-primary text-on-primary' : `bg-surface-container-highest text-${guide.color}`
+              }`}>
                 <guide.icon className="w-6 h-6" />
               </div>
               <div>
-                <h4 className="text-on-surface font-medium">{guide.name}</h4>
+                <h4 className={`font-medium ${activeGuide === guide.name ? 'text-primary' : 'text-on-surface'}`}>{guide.name}</h4>
                 <p className="text-on-surface-variant text-xs">{guide.desc}</p>
               </div>
             </div>
@@ -883,17 +910,25 @@ export default function MoodTracker() {
           <div className="space-y-4">
             <div className="flex justify-between items-center text-sm">
               <span className="text-on-surface-variant">Inner Calm</span>
-              <span className="text-primary">82%</span>
+              <span className="text-primary">{progressMetrics.calm}%</span>
             </div>
             <div className="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full" style={{ width: '82%' }} />
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${progressMetrics.calm}%` }}
+                className="h-full bg-primary rounded-full" 
+              />
             </div>
             <div className="flex justify-between items-center text-sm pt-2">
               <span className="text-on-surface-variant">Clarity</span>
-              <span className="text-secondary">64%</span>
+              <span className="text-secondary">{progressMetrics.clarity}%</span>
             </div>
             <div className="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
-              <div className="h-full bg-secondary rounded-full" style={{ width: '64%' }} />
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${progressMetrics.clarity}%` }}
+                className="h-full bg-secondary rounded-full" 
+              />
             </div>
           </div>
         </div>
