@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import { Search, Plus, Share2, Save, Bold, Italic, List, Quote, Image as ImageIcon, Edit3, Trash2, Eye, EyeOff, Mic, MicOff, Upload } from 'lucide-react';
 
 interface Note {
@@ -25,6 +27,7 @@ export default function NotesScreen() {
   const recognitionRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const activeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const activeTextareaIndexRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load notes from localStorage on mount
@@ -156,12 +159,70 @@ export default function NotesScreen() {
   const formatText = (type: 'bold' | 'italic' | 'list' | 'quote' | 'image') => {
     if (isPreview) setIsPreview(false);
     const textarea = activeTextareaRef.current || textareaRef.current;
+    const index = activeTextareaIndexRef.current;
+    
     if (!textarea) return;
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     
     setCurrentContent(prev => {
+      const parts = prev.split(/(!\[.*?\]\(.*?\))/g);
+      
+      // If we have a specific index, we insert into that part
+      if (index !== null && index < parts.length) {
+        const part = parts[index];
+        const selectedText = part.substring(start, end);
+        let textToInsert = '';
+        let cursorOffset = 0;
+
+        switch (type) {
+          case 'bold':
+            textToInsert = `**${selectedText || 'bold text'}**`;
+            cursorOffset = selectedText ? 0 : 2;
+            break;
+          case 'italic':
+            textToInsert = `*${selectedText || 'italic text'}*`;
+            cursorOffset = selectedText ? 0 : 1;
+            break;
+          case 'list':
+            const prefix = (start > 0 && part[start - 1] !== '\n') ? '\n' : '';
+            if (selectedText) {
+              textToInsert = prefix + selectedText.split('\n').map(line => `- ${line}`).join('\n');
+            } else {
+              textToInsert = `${prefix}- list item`;
+            }
+            cursorOffset = 0;
+            break;
+          case 'quote':
+            const qPrefix = (start > 0 && part[start - 1] !== '\n') ? '\n' : '';
+            textToInsert = `${qPrefix}> ${selectedText || 'quote'}`;
+            cursorOffset = 0;
+            break;
+          case 'image':
+            const url = prompt('Enter the image URL:', 'https://');
+            if (url) {
+              textToInsert = `![${selectedText || 'alt text'}](${url})`;
+              cursorOffset = 0;
+            } else {
+              return prev;
+            }
+            break;
+        }
+
+        parts[index] = part.substring(0, start) + textToInsert + part.substring(end);
+        const updated = parts.join('');
+
+        setTimeout(() => {
+          textarea.focus();
+          const newPos = start + textToInsert.length - cursorOffset;
+          textarea.setSelectionRange(newPos, newPos);
+        }, 0);
+
+        return updated;
+      }
+
+      // Fallback
       const selectedText = prev.substring(start, end);
       let textToInsert = '';
       let cursorOffset = 0;
@@ -202,7 +263,6 @@ export default function NotesScreen() {
 
       const updated = prev.substring(0, start) + textToInsert + prev.substring(end);
       
-      // Focus and set selection after state update
       setTimeout(() => {
         textarea.focus();
         const newPos = start + textToInsert.length - cursorOffset;
@@ -236,12 +296,34 @@ export default function NotesScreen() {
   const insertImageMarkdown = (url: string) => {
     if (isPreview) setIsPreview(false);
     const textarea = activeTextareaRef.current || textareaRef.current;
+    const index = activeTextareaIndexRef.current;
+    
     if (!textarea) return;
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
 
     setCurrentContent(prev => {
+      const parts = prev.split(/(!\[.*?\]\(.*?\))/g);
+      
+      // If we have a specific index, we insert into that part
+      if (index !== null && index < parts.length) {
+        const part = parts[index];
+        const selectedText = part.substring(start, end);
+        const textToInsert = `![${selectedText || 'uploaded image'}](${url})`;
+        parts[index] = part.substring(0, start) + textToInsert + part.substring(end);
+        const updated = parts.join('');
+
+        setTimeout(() => {
+          // After re-render, we might need to find the new textarea
+          // But for now, just focus the main one or let the user click
+          textarea.focus();
+        }, 50);
+
+        return updated;
+      }
+
+      // Fallback to simple insertion if index is lost
       const selectedText = prev.substring(start, end);
       const textToInsert = `![${selectedText || 'uploaded image'}](${url})`;
       const updated = prev.substring(0, start) + textToInsert + prev.substring(end);
@@ -654,40 +736,42 @@ export default function NotesScreen() {
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {isPreview ? (
-              <div className="max-w-none text-on-surface">
+              <div className="max-w-none w-full p-4 space-y-6 text-on-surface">
                 <ReactMarkdown 
+                  key={activeNoteId || 'new'}
                   remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
                   components={{
-                    p: ({node, ...props}) => <p {...props} className="mb-4 leading-relaxed text-on-surface/80" />,
-                    h1: ({node, ...props}) => <h1 {...props} className="text-3xl font-bold mb-6 text-primary" />,
-                    h2: ({node, ...props}) => <h2 {...props} className="text-2xl font-bold mb-4 text-primary/80" />,
-                    h3: ({node, ...props}) => <h3 {...props} className="text-xl font-bold mb-3 text-primary/60" />,
-                    ul: ({node, ...props}) => <ul {...props} className="list-disc list-inside mb-4 space-y-2" />,
-                    ol: ({node, ...props}) => <ol {...props} className="list-decimal list-inside mb-4 space-y-2" />,
+                    p: ({node, ...props}) => <p {...props} className="leading-relaxed text-lg opacity-90" />,
+                    h1: ({node, ...props}) => <h1 {...props} className="text-4xl font-serif font-bold text-primary mt-12 mb-6" />,
+                    h2: ({node, ...props}) => <h2 {...props} className="text-3xl font-serif font-bold text-primary/90 mt-10 mb-5" />,
+                    h3: ({node, ...props}) => <h3 {...props} className="text-2xl font-serif font-bold text-primary/80 mt-8 mb-4" />,
+                    ul: ({node, ...props}) => <ul {...props} className="list-disc list-inside space-y-3 my-6" />,
+                    ol: ({node, ...props}) => <ol {...props} className="list-decimal list-inside space-y-3 my-6" />,
                     li: ({node, ...props}) => <li {...props} className="text-on-surface/80" />,
-                    blockquote: ({node, ...props}) => <blockquote {...props} className="border-l-4 border-primary/20 pl-4 italic my-6 text-on-surface/60" />,
+                    blockquote: ({node, ...props}) => <blockquote {...props} className="border-l-4 border-primary/30 pl-6 italic my-8 text-on-surface/70 bg-primary/5 py-4 rounded-r-2xl" />,
                     code: ({node, inline, ...props}: any) => (
                       inline 
-                        ? <code {...props} className="bg-surface-container-highest px-1.5 py-0.5 rounded text-sm font-mono" />
-                        : <code {...props} className="block bg-surface-container-highest p-4 rounded-2xl text-sm font-mono overflow-x-auto my-4" />
+                        ? <code {...props} className="bg-surface-container-highest px-2 py-0.5 rounded text-sm font-mono text-primary" />
+                        : <pre className="bg-surface-container-highest p-6 rounded-3xl text-sm font-mono overflow-x-auto my-8 border border-outline-variant/10 shadow-inner">
+                            <code {...props} />
+                          </pre>
                     ),
                     img: ({ node, ...props }) => {
                       if (!props.src) return null;
                       return (
-                        <div className="my-8 flex flex-col items-center gap-3">
-                          <img 
-                            {...props} 
-                            referrerPolicy="no-referrer" 
-                            className="rounded-3xl shadow-2xl max-w-full h-auto border border-outline-variant/10" 
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              if (!target.src.includes('picsum.photos')) {
-                                target.src = `https://picsum.photos/seed/preview/800/400?blur=2`;
-                              }
-                            }}
-                          />
+                        <div className="my-12 w-full flex flex-col items-center gap-4">
+                          <div className="relative group/preview w-full max-w-2xl">
+                            <img 
+                              {...props} 
+                              referrerPolicy="no-referrer" 
+                              loading="eager"
+                              className="rounded-[2rem] shadow-2xl w-full h-auto border border-outline-variant/10 block hover:border-primary/30 transition-colors min-h-[100px]" 
+                            />
+                            <div className="absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-white/10 pointer-events-none" />
+                          </div>
                           {props.alt && props.alt !== 'uploaded image' && (
-                            <span className="text-[10px] uppercase tracking-widest text-on-surface-variant/40 font-bold">
+                            <span className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant/40 font-bold">
                               {props.alt}
                             </span>
                           )}
@@ -756,7 +840,10 @@ export default function NotesScreen() {
                         newArray[index] = e.target.value;
                         setCurrentContent(newArray.join(''));
                       }}
-                      onFocus={(e) => activeTextareaRef.current = e.target as HTMLTextAreaElement}
+                      onFocus={(e) => {
+                        activeTextareaRef.current = e.target as HTMLTextAreaElement;
+                        activeTextareaIndexRef.current = index;
+                      }}
                       onPaste={(e) => handlePaste(e, index, array)}
                       placeholder={index === 0 ? "Start typing your thoughts here..." : ""}
                       className="editor-textarea w-full bg-transparent border-none focus:ring-0 text-lg md:text-xl text-on-surface leading-relaxed placeholder:text-on-surface-variant/20 resize-none overflow-hidden"
