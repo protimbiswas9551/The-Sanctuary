@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Search, Plus, Share2, Save, Bold, Italic, List, Quote, Image as ImageIcon, Edit3, Trash2, Eye, EyeOff, Mic, MicOff } from 'lucide-react';
+import { Search, Plus, Share2, Save, Bold, Italic, List, Quote, Image as ImageIcon, Edit3, Trash2, Eye, EyeOff, Mic, MicOff, Upload } from 'lucide-react';
 
 interface Note {
   id: string;
@@ -25,6 +25,7 @@ export default function NotesScreen() {
   const recognitionRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const activeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load notes from localStorage on mount
   useEffect(() => {
@@ -205,6 +206,49 @@ export default function NotesScreen() {
       setTimeout(() => {
         textarea.focus();
         const newPos = start + textToInsert.length - cursorOffset;
+        textarea.setSelectionRange(newPos, newPos);
+      }, 0);
+
+      return updated;
+    });
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      insertImageMarkdown(dataUrl);
+    };
+    reader.readAsDataURL(file);
+    
+    // Reset input
+    e.target.value = '';
+  };
+
+  const insertImageMarkdown = (url: string) => {
+    if (isPreview) setIsPreview(false);
+    const textarea = activeTextareaRef.current || textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    setCurrentContent(prev => {
+      const selectedText = prev.substring(start, end);
+      const textToInsert = `![${selectedText || 'uploaded image'}](${url})`;
+      const updated = prev.substring(0, start) + textToInsert + prev.substring(end);
+
+      setTimeout(() => {
+        textarea.focus();
+        const newPos = start + textToInsert.length;
         textarea.setSelectionRange(newPos, newPos);
       }, 0);
 
@@ -592,6 +636,21 @@ export default function NotesScreen() {
               {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
               {isListening ? 'Listening...' : 'Voice'}
             </button>
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all"
+              title="Upload Image"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Upload
+            </button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleImageUpload} 
+              accept="image/*" 
+              className="hidden" 
+            />
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {isPreview ? (
