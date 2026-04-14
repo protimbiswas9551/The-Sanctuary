@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Flower, AirVent, Mic, MicOff, Loader2, Ear, Heart, Brain } from 'lucide-react';
+import { Send, Flower, AirVent, Mic, MicOff, Loader2, Ear, Heart, Brain, Smile } from 'lucide-react';
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
 import { GoogleGenAI } from "@google/genai";
 
@@ -10,7 +10,10 @@ interface Message {
   text: string;
   sender: 'ai' | 'user';
   time: string;
+  reactions?: string[];
 }
+
+const REACTION_EMOJIS = ['❤️', '👌', '🌱', '✨', '🙏'];
 
 const PERSONALITIES = [
   {
@@ -64,6 +67,7 @@ export default function ChatInterface() {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [activePersonality, setActivePersonality] = useState(PERSONALITIES[0]);
+  const [showReactionPicker, setShowReactionPicker] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -131,6 +135,20 @@ export default function ChatInterface() {
   const { isListening, startListening } = useVoiceCommands({
     onSendMessage: handleSendMessage
   });
+
+  const handleReaction = (messageId: number, emoji: string) => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId) {
+        const reactions = msg.reactions || [];
+        if (reactions.includes(emoji)) {
+          return { ...msg, reactions: reactions.filter(r => r !== emoji) };
+        }
+        return { ...msg, reactions: [...reactions, emoji] };
+      }
+      return msg;
+    }));
+    setShowReactionPicker(null);
+  };
 
   return (
     <div className="relative flex-1 flex flex-col md:flex-row gap-8 px-6 py-8 max-w-7xl mx-auto w-full z-10 overflow-hidden pt-28">
@@ -218,6 +236,57 @@ export default function ChatInterface() {
                       animate={{ opacity: [0.2, 0.5, 0.2] }}
                       transition={{ duration: 3, repeat: Infinity }}
                     />
+                  )}
+
+                  {/* Reaction Button & Display */}
+                  {msg.sender === 'ai' && (
+                    <div className="absolute -bottom-3 left-6 flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
+                        <AnimatePresence>
+                          {msg.reactions?.map((emoji, idx) => (
+                            <motion.div
+                              key={idx}
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0, opacity: 0 }}
+                              className="bg-surface-container-highest border border-outline-variant/20 rounded-full px-1.5 py-0.5 text-[10px] shadow-sm flex items-center justify-center"
+                            >
+                              {emoji}
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                      
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowReactionPicker(showReactionPicker === msg.id ? null : msg.id)}
+                          className="w-6 h-6 rounded-full bg-surface-container-highest border border-outline-variant/20 flex items-center justify-center text-on-surface-variant/40 hover:text-primary hover:border-primary/40 transition-all shadow-sm"
+                        >
+                          <Smile className="w-3.5 h-3.5" />
+                        </button>
+
+                        <AnimatePresence>
+                          {showReactionPicker === msg.id && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                              className="absolute bottom-full left-0 mb-2 p-1.5 bg-surface-container-high border border-outline-variant/20 rounded-2xl shadow-2xl flex items-center gap-1 z-50"
+                            >
+                              {REACTION_EMOJIS.map(emoji => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => handleReaction(msg.id, emoji)}
+                                  className={`w-8 h-8 rounded-xl flex items-center justify-center text-lg hover:bg-primary/10 transition-colors ${msg.reactions?.includes(emoji) ? 'bg-primary/20' : ''}`}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
                   )}
                 </div>
               </motion.div>
