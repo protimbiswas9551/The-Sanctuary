@@ -24,6 +24,7 @@ export default function NotesScreen() {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const activeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Load notes from localStorage on mount
   useEffect(() => {
@@ -108,7 +109,25 @@ export default function NotesScreen() {
     return () => clearInterval(interval);
   }, [currentTitle, currentContent, activeNoteId]);
 
+  const saveNoteRef = useRef(handleSave);
+  useEffect(() => {
+    saveNoteRef.current = handleSave;
+  }, [currentTitle, currentContent, activeNoteId]);
+
+  // Save on unmount or refresh
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveNoteRef.current();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      saveNoteRef.current();
+    };
+  }, []);
+
   const createNewNote = () => {
+    saveNoteRef.current();
     setActiveNoteId(null);
     setCurrentTitle('Untitled Reflection');
     setCurrentContent('');
@@ -116,10 +135,13 @@ export default function NotesScreen() {
   };
 
   const selectNote = (note: Note) => {
-    setActiveNoteId(note.id);
-    setCurrentTitle(note.title);
-    setCurrentContent(note.content);
-    setLastSaved(note.time);
+    if (activeNoteId !== note.id) {
+      saveNoteRef.current();
+      setActiveNoteId(note.id);
+      setCurrentTitle(note.title);
+      setCurrentContent(note.content);
+      setLastSaved(note.time);
+    }
   };
 
   const deleteNote = (id: string, e: React.MouseEvent) => {
@@ -132,7 +154,7 @@ export default function NotesScreen() {
 
   const formatText = (type: 'bold' | 'italic' | 'list' | 'quote' | 'image') => {
     if (isPreview) setIsPreview(false);
-    const textarea = textareaRef.current;
+    const textarea = activeTextareaRef.current || textareaRef.current;
     if (!textarea) return;
 
     const start = textarea.selectionStart;
@@ -221,27 +243,29 @@ export default function NotesScreen() {
     };
 
     recognition.onresult = (event: any) => {
-      const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+      const transcript = event.results[event.results.length - 1][0].transcript.trim();
       console.log('Transcript:', transcript);
 
+      const lowerTranscript = transcript.toLowerCase();
+
       // Command handling
-      if (transcript.startsWith('bold ')) {
-        const text = transcript.replace('bold ', '');
+      if (lowerTranscript.startsWith('bold ')) {
+        const text = transcript.slice(5);
         setCurrentContent(prev => prev + ` **${text}**`);
-      } else if (transcript.startsWith('italic ')) {
-        const text = transcript.replace('italic ', '');
+      } else if (lowerTranscript.startsWith('italic ')) {
+        const text = transcript.slice(7);
         setCurrentContent(prev => prev + ` *${text}*`);
-      } else if (transcript.startsWith('list ')) {
-        const text = transcript.replace('list ', '');
+      } else if (lowerTranscript.startsWith('list ')) {
+        const text = transcript.slice(5);
         setCurrentContent(prev => prev + `\n- ${text}`);
-      } else if (transcript.startsWith('title ')) {
-        const text = transcript.replace('title ', '');
+      } else if (lowerTranscript.startsWith('title ')) {
+        const text = transcript.slice(6);
         setCurrentTitle(text.charAt(0).toUpperCase() + text.slice(1));
-      } else if (transcript === 'new note' || transcript === 'create new note') {
+      } else if (lowerTranscript === 'new note' || lowerTranscript === 'create new note') {
         createNewNote();
-      } else if (transcript === 'save note' || transcript === 'save reflection') {
+      } else if (lowerTranscript === 'save note' || lowerTranscript === 'save reflection') {
         handleSave();
-      } else if (transcript === 'clear content') {
+      } else if (lowerTranscript === 'clear content') {
         setCurrentContent('');
       } else {
         // Default dictation
@@ -264,6 +288,39 @@ export default function NotesScreen() {
     recognitionRef.current = recognition;
     recognition.start();
   };
+
+  const handlePaste = (e: React.ClipboardEvent, index: number, array: string[]) => {
+    const text = e.clipboardData.getData('text');
+    // Detect image URLs (common patterns)
+    const imageRegex = /\.(jpeg|jpg|gif|png|webp|svg)$|images\.unsplash\.com|picsum\.photos|cdn\.pixabay\.com/i;
+    const isImage = text.match(imageRegex) || (text.startsWith('http') && (text.includes('/photo-') || text.includes('/img/')));
+    
+    if (isImage) {
+      e.preventDefault();
+      const markdown = `\n![Image](${text})\n`;
+      const textarea = e.target as HTMLTextAreaElement;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const val = textarea.value;
+      
+      const newVal = val.substring(0, start) + markdown + val.substring(end);
+      const newArray = [...array];
+      newArray[index] = newVal;
+      setCurrentContent(newArray.join(''));
+    }
+  };
+
+  // Auto-resize textareas
+  useEffect(() => {
+    if (!isPreview) {
+      const textareas = document.querySelectorAll('textarea.editor-textarea');
+      textareas.forEach(ta => {
+        const t = ta as HTMLTextAreaElement;
+        t.style.height = 'auto';
+        t.style.height = t.scrollHeight + 'px';
+      });
+    }
+  }, [isPreview, currentContent]);
 
   return (
     <div className="relative pt-20 min-h-screen flex overflow-hidden">
@@ -303,7 +360,7 @@ export default function NotesScreen() {
         </div>
         
         {/* Notes List - Styled as requested */}
-        <div className="flex-1 overflow-y-auto px-4 custom-scrollbar space-y-3 pb-8 mt-2">
+        <div className="flex-1 overflow-y-auto px-4 custom-scrollbar space-y-3 pb-8 mt-2 scroll-smooth">
           <AnimatePresence mode="popLayout">
             {filteredNotes.length === 0 && (
               <motion.div 
@@ -337,15 +394,27 @@ export default function NotesScreen() {
                     : 'bg-surface-container-highest/30 border-transparent hover:bg-surface-container-highest/60 hover:border-outline-variant/20'
                 }`}
               >
-                <div className="flex justify-between items-start mb-2 relative z-10">
-                  <h3 className={`font-serif text-base transition-colors duration-500 ${activeNoteId === note.id ? 'text-primary' : 'text-on-surface'}`}>
+                <div className="flex justify-between items-start mb-3 relative z-10">
+                  <h3 className={`font-serif text-base font-bold transition-colors duration-500 ${activeNoteId === note.id ? 'text-primary' : 'text-on-surface'}`}>
                     {note.title}
                   </h3>
-                  <span className="text-[9px] text-on-surface-variant/40 font-bold uppercase tracking-tighter">{note.time}</span>
+                  <span className="text-[9px] text-on-surface-variant/40 font-bold uppercase tracking-tighter whitespace-nowrap ml-2">{note.time}</span>
                 </div>
-                <p className="text-xs text-on-surface-variant/70 line-clamp-2 leading-relaxed relative z-10">
-                  {note.excerpt || 'Empty reflection...'}
-                </p>
+                <div className="text-[11px] text-on-surface-variant/60 line-clamp-3 leading-relaxed relative z-10 prose prose-invert prose-emerald max-w-none pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity">
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      img: () => <div className="h-1 w-8 bg-primary/20 rounded-full my-1" />, // Tiny indicator for images
+                      h1: ({children}) => <span className="font-bold">{children}</span>,
+                      h2: ({children}) => <span className="font-bold">{children}</span>,
+                      h3: ({children}) => <span className="font-bold">{children}</span>,
+                      p: ({children}) => <span>{children}</span>,
+                      a: ({children}) => <span className="text-primary/60 underline">{children}</span>
+                    }}
+                  >
+                    {note.excerpt || 'Empty reflection...'}
+                  </ReactMarkdown>
+                </div>
                 
                 {/* Hover Decor */}
                 <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 blur-2xl rounded-full translate-x-12 -translate-y-12 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
@@ -524,21 +593,84 @@ export default function NotesScreen() {
               {isListening ? 'Listening...' : 'Voice'}
             </button>
           </div>
-          {isPreview ? (
-            <div className="flex-1 overflow-y-auto custom-scrollbar prose prose-invert prose-emerald max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {currentContent || '*No content to preview...*'}
-              </ReactMarkdown>
-            </div>
-          ) : (
-            <textarea 
-              ref={textareaRef}
-              value={currentContent}
-              onChange={(e) => setCurrentContent(e.target.value)}
-              className="w-full flex-1 bg-transparent border-none focus:ring-0 text-lg md:text-xl text-on-surface leading-relaxed placeholder:text-on-surface-variant/20 resize-none custom-scrollbar" 
-              placeholder="Start typing your thoughts here..."
-            />
-          )}
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {isPreview ? (
+              <div className="prose prose-invert prose-emerald max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {currentContent || '*No content to preview...*'}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {currentContent.split(/(!\[.*?\]\(.*?\))/g).map((part, index, array) => {
+                  const isImage = part.match(/!\[.*?\]\(.*?\)/);
+                  if (isImage) {
+                    const urlMatch = part.match(/\((.*?)\)/);
+                    const url = urlMatch ? urlMatch[1] : '';
+                    return (
+                      <motion.div 
+                        key={index} 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="group relative bg-surface-container-highest/20 rounded-3xl p-6 border border-outline-variant/10 shadow-inner"
+                      >
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                            <ImageIcon className="w-3.5 h-3.5" />
+                          </div>
+                          <input 
+                            value={part}
+                            onChange={(e) => {
+                              const newArray = [...array];
+                              newArray[index] = e.target.value;
+                              setCurrentContent(newArray.join(''));
+                            }}
+                            className="flex-1 bg-transparent border-none focus:ring-0 text-[10px] font-mono text-on-surface-variant/40 p-0 placeholder:text-on-surface-variant/20"
+                            placeholder="![alt text](url)"
+                          />
+                        </div>
+                        <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-outline-variant/5 group-hover:border-primary/20 transition-colors">
+                          <img 
+                            src={url} 
+                            alt="Preview" 
+                            className="max-w-full h-auto mx-auto block"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${index}/800/400?blur=2`;
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                        </div>
+                      </motion.div>
+                    );
+                  }
+                  
+                  return (
+                    <textarea
+                      key={index}
+                      ref={index === 0 ? textareaRef : null}
+                      value={part}
+                      onChange={(e) => {
+                        const newArray = [...array];
+                        newArray[index] = e.target.value;
+                        setCurrentContent(newArray.join(''));
+                      }}
+                      onFocus={(e) => activeTextareaRef.current = e.target as HTMLTextAreaElement}
+                      onPaste={(e) => handlePaste(e, index, array)}
+                      placeholder={index === 0 ? "Start typing your thoughts here..." : ""}
+                      className="editor-textarea w-full bg-transparent border-none focus:ring-0 text-lg md:text-xl text-on-surface leading-relaxed placeholder:text-on-surface-variant/20 resize-none overflow-hidden"
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = 'auto';
+                        target.style.height = target.scrollHeight + 'px';
+                      }}
+                      style={{ height: 'auto' }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-8 max-w-4xl w-full mx-auto flex items-center justify-between text-on-surface-variant/80 text-[10px] tracking-wider uppercase font-bold">
