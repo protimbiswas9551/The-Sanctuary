@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Ear, Flower2, Brain, Tag, X, Filter, Sparkles, RefreshCw, Loader2, Mic, MicOff, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wind, Image as ImageIcon, Bell, Lightbulb } from 'lucide-react';
+import { Ear, Flower2, Brain, Tag, X, Filter, Sparkles, RefreshCw, Loader2, Mic, MicOff, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wind, Image as ImageIcon, Bell, Lightbulb, Flame } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
 import BreathingExercise from '../components/BreathingExercise';
@@ -15,7 +15,8 @@ import {
   isSameDay, 
   addMonths, 
   subMonths,
-  isToday
+  isToday,
+  subDays
 } from 'date-fns';
 
 interface JournalEntry {
@@ -56,6 +57,44 @@ export default function MoodTracker() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showBreathing, setShowBreathing] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [showStreakCelebration, setShowStreakCelebration] = useState(false);
+
+  const calculateStreak = (entries: JournalEntry[]) => {
+    if (entries.length === 0) return 0;
+
+    // Get unique dates (YYYY-MM-DD)
+    const uniqueDates = Array.from(new Set(entries.map(e => {
+      const date = new Date(e.id);
+      return format(date, 'yyyy-MM-dd');
+    }))).sort((a, b) => b.localeCompare(a));
+
+    if (uniqueDates.length === 0) return 0;
+
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+
+    // If the most recent entry isn't today or yesterday, streak is broken
+    if (uniqueDates[0] !== today && uniqueDates[0] !== yesterday) {
+      return 0;
+    }
+
+    let currentStreak = 0;
+    let checkDate = new Date(uniqueDates[0]);
+
+    for (let i = 0; i < uniqueDates.length; i++) {
+      const expectedDate = format(checkDate, 'yyyy-MM-dd');
+      // Find if this date exists in our unique dates
+      if (uniqueDates.includes(expectedDate)) {
+        currentStreak++;
+        checkDate = subDays(checkDate, 1);
+      } else {
+        break;
+      }
+    }
+
+    return currentStreak;
+  };
 
   const { isListening, startListening } = useVoiceCommands({
     onSendMessage: (text) => {
@@ -67,6 +106,9 @@ export default function MoodTracker() {
   useEffect(() => {
     const entries = JSON.parse(localStorage.getItem('sanctuary_entries') || '[]');
     setSavedEntries(entries);
+    const currentStreak = calculateStreak(entries);
+    setStreak(currentStreak);
+    localStorage.setItem('sanctuary_streak', currentStreak.toString());
   }, []);
 
   const handleRootThought = () => {
@@ -84,9 +126,19 @@ export default function MoodTracker() {
       reminder: reminderTime || undefined
     };
     
+    const oldStreak = calculateStreak(savedEntries);
     const updatedEntries = [newEntry, ...savedEntries];
+    const newStreak = calculateStreak(updatedEntries);
+    
     localStorage.setItem('sanctuary_entries', JSON.stringify(updatedEntries));
     setSavedEntries(updatedEntries);
+    setStreak(newStreak);
+    localStorage.setItem('sanctuary_streak', newStreak.toString());
+
+    if (newStreak > oldStreak) {
+      setShowStreakCelebration(true);
+      setTimeout(() => setShowStreakCelebration(false), 5000);
+    }
     
     setTimeout(() => {
       setEntry('');
@@ -257,6 +309,49 @@ export default function MoodTracker() {
         <p className="text-on-surface-variant text-lg max-w-lg">
           The garden of the mind needs tending. Take a moment to name your weather.
         </p>
+
+        <div className="flex items-center gap-4 mt-8">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3 px-5 py-3 rounded-2xl glass-panel border-primary/20 group relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-primary/5 group-hover:bg-primary/10 transition-colors" />
+            <div className={`relative z-10 p-2 rounded-xl ${streak > 0 ? 'bg-primary/20 text-primary' : 'bg-surface-container-highest text-on-surface-variant/40'}`}>
+              <Flame className={`w-6 h-6 ${streak > 0 ? 'animate-pulse' : ''}`} />
+            </div>
+            <div className="relative z-10 flex flex-col">
+              <span className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">Daily Streak</span>
+              <div className="flex items-baseline gap-1">
+                <span className={`text-2xl font-bold ${streak > 0 ? 'text-primary' : 'text-on-surface-variant/40'}`}>{streak}</span>
+                <span className="text-xs font-medium text-on-surface-variant">days</span>
+              </div>
+            </div>
+            
+            <AnimatePresence>
+              {showStreakCelebration && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0 }}
+                  className="absolute -right-2 -top-2"
+                >
+                  <Sparkles className="w-12 h-12 text-primary animate-spin-slow" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {streak > 0 && (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-xs text-primary/60 font-medium italic"
+            >
+              {streak >= 7 ? "You're a master gardener! 🌱" : streak >= 3 ? "The garden is flourishing. ✨" : "A beautiful start. Keep growing. 🌿"}
+            </motion.div>
+          )}
+        </div>
       </section>
 
       {/* Journaling Area */}
