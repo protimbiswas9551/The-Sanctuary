@@ -654,13 +654,45 @@ export default function NotesScreen() {
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {isPreview ? (
-              <div className="prose prose-invert prose-emerald max-w-none">
+              <div className="max-w-none text-on-surface">
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    img: ({src, alt}) => {
-                      if (!src) return null;
-                      return <img src={src} alt={alt} referrerPolicy="no-referrer" className="rounded-2xl shadow-lg" />;
+                    p: ({node, ...props}) => <p {...props} className="mb-4 leading-relaxed text-on-surface/80" />,
+                    h1: ({node, ...props}) => <h1 {...props} className="text-3xl font-bold mb-6 text-primary" />,
+                    h2: ({node, ...props}) => <h2 {...props} className="text-2xl font-bold mb-4 text-primary/80" />,
+                    h3: ({node, ...props}) => <h3 {...props} className="text-xl font-bold mb-3 text-primary/60" />,
+                    ul: ({node, ...props}) => <ul {...props} className="list-disc list-inside mb-4 space-y-2" />,
+                    ol: ({node, ...props}) => <ol {...props} className="list-decimal list-inside mb-4 space-y-2" />,
+                    li: ({node, ...props}) => <li {...props} className="text-on-surface/80" />,
+                    blockquote: ({node, ...props}) => <blockquote {...props} className="border-l-4 border-primary/20 pl-4 italic my-6 text-on-surface/60" />,
+                    code: ({node, inline, ...props}: any) => (
+                      inline 
+                        ? <code {...props} className="bg-surface-container-highest px-1.5 py-0.5 rounded text-sm font-mono" />
+                        : <code {...props} className="block bg-surface-container-highest p-4 rounded-2xl text-sm font-mono overflow-x-auto my-4" />
+                    ),
+                    img: ({ node, ...props }) => {
+                      if (!props.src) return null;
+                      return (
+                        <div className="my-8 flex flex-col items-center gap-3">
+                          <img 
+                            {...props} 
+                            referrerPolicy="no-referrer" 
+                            className="rounded-3xl shadow-2xl max-w-full h-auto border border-outline-variant/10" 
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              if (!target.src.includes('picsum.photos')) {
+                                target.src = `https://picsum.photos/seed/preview/800/400?blur=2`;
+                              }
+                            }}
+                          />
+                          {props.alt && props.alt !== 'uploaded image' && (
+                            <span className="text-[10px] uppercase tracking-widest text-on-surface-variant/40 font-bold">
+                              {props.alt}
+                            </span>
+                          )}
+                        </div>
+                      );
                     }
                   }}
                 >
