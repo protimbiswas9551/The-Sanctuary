@@ -369,7 +369,7 @@ export default function MoodTracker() {
               </motion.button>
             </div>
 
-            {attachedPhoto && (
+            {attachedPhoto && attachedPhoto.trim() !== '' && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -584,7 +584,7 @@ export default function MoodTracker() {
                     </div>
                     <p className="text-on-surface text-sm mb-4 line-clamp-3 leading-relaxed">{entry.text}</p>
                     
-                    {entry.photo && (
+                    {entry.photo && entry.photo.trim() !== '' && (
                       <div className="mb-4 rounded-xl overflow-hidden h-32 border border-outline-variant/10">
                         <img src={entry.photo} alt="Reflection" className="w-full h-full object-cover" />
                       </div>

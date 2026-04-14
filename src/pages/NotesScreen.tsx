@@ -655,7 +655,15 @@ export default function NotesScreen() {
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {isPreview ? (
               <div className="prose prose-invert prose-emerald max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    img: ({src, alt}) => {
+                      if (!src) return null;
+                      return <img src={src} alt={alt} referrerPolicy="no-referrer" className="rounded-2xl shadow-lg" />;
+                    }
+                  }}
+                >
                   {currentContent || '*No content to preview...*'}
                 </ReactMarkdown>
               </div>
@@ -665,7 +673,9 @@ export default function NotesScreen() {
                   const isImage = part.match(/!\[.*?\]\(.*?\)/);
                   if (isImage) {
                     const urlMatch = part.match(/\((.*?)\)/);
-                    const url = urlMatch ? urlMatch[1] : '';
+                    const url = urlMatch ? urlMatch[1] : null;
+                    if (!url) return null;
+                    
                     return (
                       <motion.div 
                         key={index} 
