@@ -80,7 +80,7 @@ export default function VoiceInterface() {
   const [currentTrack, setCurrentTrack] = useState(TRACKS[0]);
   const [showMenu, setShowMenu] = useState(false);
   const [amplitude, setAmplitude] = useState(0);
-  const [frequencyData, setFrequencyData] = useState<number[]>(new Array(8).fill(0));
+  const [frequencyData, setFrequencyData] = useState<number[]>(new Array(16).fill(0));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugMode, setDebugMode] = useState(false);
@@ -121,7 +121,7 @@ export default function VoiceInterface() {
 
     const updateVisualizer = () => {
       let currentAmplitude = 0;
-      let currentFrequencies = new Array(8).fill(0);
+      let currentFrequencies = new Array(16).fill(0);
       
       if (analyserRef.current) {
         const bufferLength = analyserRef.current.frequencyBinCount;
@@ -136,9 +136,9 @@ export default function VoiceInterface() {
         const average = sum / bufferLength;
         currentAmplitude = Math.min(average / 128, 1);
 
-        // Extract 8 frequency bands for the UI
-        const step = Math.floor(bufferLength / 8);
-        for (let i = 0; i < 8; i++) {
+        // Extract 16 frequency bands for the UI
+        const step = Math.floor(bufferLength / 16);
+        for (let i = 0; i < 16; i++) {
           let bandSum = 0;
           for (let j = 0; j < step; j++) {
             bandSum += dataArray[i * step + j];
@@ -151,7 +151,7 @@ export default function VoiceInterface() {
       if (currentAmplitude === 0 && isPlaying) {
         currentAmplitude = 0.1 + Math.sin(Date.now() / 500) * 0.05;
         currentFrequencies = currentFrequencies.map((_, i) => 
-          0.2 + Math.sin((Date.now() + i * 200) / 400) * 0.15
+          0.2 + Math.sin((Date.now() + i * 150) / 300) * 0.15
         );
       }
       
@@ -367,23 +367,23 @@ export default function VoiceInterface() {
           <AnimatePresence>
             {isPlaying && (
               <>
-                {[1, 2, 3].map((i) => (
+                {[1, 2, 3, 4].map((i) => (
                   <motion.div
                     key={`ring-${i}`}
                     initial={{ opacity: 0, scale: 1 }}
                     animate={{ 
-                      opacity: isPlaying ? [0, 0.15 + (frequencyData[i % 8] || 0) * 0.2, 0] : 0,
-                      scale: isPlaying ? [1, 1.4 + i * 0.3 + amplitude * 0.8, 2.2 + amplitude * 1.2] : 1,
-                      borderWidth: isPlaying ? [`${1}px`, `${2 + amplitude * 4}px`, `${1}px`] : "1px"
+                      opacity: isPlaying ? [0, 0.1 + (frequencyData[i * 2 % 16] || 0) * 0.3, 0] : 0,
+                      scale: isPlaying ? [1, 1.2 + i * 0.4 + amplitude * 1.2, 2.5 + amplitude * 1.5] : 1,
+                      borderWidth: isPlaying ? [`${1}px`, `${1 + amplitude * 6}px`, `${1}px`] : "1px"
                     }}
                     exit={{ opacity: 0 }}
                     transition={{ 
-                      duration: 3.5 - amplitude * 1.5,
+                      duration: 4 - amplitude * 2,
                       repeat: Infinity,
-                      delay: i * 0.8,
+                      delay: i * 0.7,
                       ease: "easeOut"
                     }}
-                    className="absolute inset-0 rounded-full border border-primary/40 pointer-events-none"
+                    className="absolute inset-0 rounded-full border border-primary/30 pointer-events-none"
                   />
                 ))}
               </>
@@ -419,20 +419,22 @@ export default function VoiceInterface() {
 
             {/* Subtle Wave Animation - Reacts to frequency data */}
             {isPlaying && (
-              <div className="absolute inset-0 flex items-end justify-center opacity-30 pb-8">
+              <div className="absolute inset-0 flex items-end justify-center opacity-40 pb-12 px-8">
                 {frequencyData.map((val, i) => (
                   <motion.div
                     key={`wave-${i}`}
                     animate={{ 
-                      height: [`${10 + val * 40}%`, `${30 + val * 60}%`, `${10 + val * 40}%`],
-                      opacity: [0.2, 0.5, 0.2]
+                      height: `${15 + val * 75}%`,
+                      opacity: 0.1 + val * 0.8,
+                      backgroundColor: val > 0.6 ? 'var(--color-primary)' : 'var(--color-primary-container)'
                     }}
                     transition={{ 
-                      duration: 0.5 + Math.random() * 0.5,
-                      repeat: Infinity,
-                      ease: "easeInOut"
+                      type: "spring",
+                      stiffness: 300,
+                      damping: 30,
+                      mass: 0.5
                     }}
-                    className="w-1.5 mx-1 bg-primary rounded-full shadow-[0_0_10px_rgba(115,219,154,0.5)]"
+                    className="flex-1 mx-[1px] rounded-full shadow-[0_0_15px_rgba(115,219,154,0.3)]"
                   />
                 ))}
               </div>
