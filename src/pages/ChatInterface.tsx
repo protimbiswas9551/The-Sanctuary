@@ -68,6 +68,10 @@ export default function ChatInterface() {
   const [isTyping, setIsTyping] = useState(false);
   const [activePersonality, setActivePersonality] = useState(PERSONALITIES[0]);
   const [showReactionPicker, setShowReactionPicker] = useState<number | null>(null);
+  const [dailyIntention, setDailyIntention] = useState<string>("Tending to the seeds of today's thoughts...");
+  const [isGeneratingIntention, setIsGeneratingIntention] = useState(false);
+  const [resonanceInsight, setResonanceInsight] = useState<string | null>(null);
+  const [isAnalyzingResonance, setIsAnalyzingResonance] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -77,6 +81,51 @@ export default function ChatInterface() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const generateDailyIntention = async () => {
+    setIsGeneratingIntention(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = "Generate a single, poetic, and deeply calming 'Daily Intention' or quote for someone focused on emotional well-being and growth. Use forest, garden, or natural metaphors. Keep it under 25 words.";
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite-preview",
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      });
+      setDailyIntention(response.text || "Bloom where you are planted.");
+    } catch (error) {
+      console.error("Error generating intention:", error);
+    } finally {
+      setIsGeneratingIntention(false);
+    }
+  };
+
+  const analyzeResonance = async () => {
+    if (messages.length < 4) {
+      alert("We need a bit more conversation to find the resonance. Continue sharing your thoughts.");
+      return;
+    }
+    
+    setIsAnalyzingResonance(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const history = messages.map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`).join('\n');
+      const prompt = `Analyze the following conversation from a spiritual and psychological perspective. Identify the underlying "resonance" or emotional theme. Provide a deep, compassionate insight (2-3 sentences) that helps the user find growth or clarity. Use botanical metaphors. \n\nCONVERSATION:\n${history}`;
+      
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-pro-preview",
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      });
+      setResonanceInsight(response.text);
+    } catch (error) {
+      console.error("Error analyzing resonance:", error);
+    } finally {
+      setIsAnalyzingResonance(false);
+    }
+  };
+
+  useEffect(() => {
+    generateDailyIntention();
+  }, []);
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isTyping) return;
@@ -427,8 +476,63 @@ export default function ChatInterface() {
         </div>
 
         <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant/5">
-          <span className="text-[10px] uppercase tracking-widest text-secondary font-bold mb-4 block">Daily Intention</span>
-          <p className="text-on-surface-variant italic font-light leading-relaxed">"Deep in the forest, the oldest trees do not compete; they support the growth of the young."</p>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-[10px] uppercase tracking-widest text-secondary font-bold">Daily Intention</span>
+            <button 
+              onClick={generateDailyIntention}
+              disabled={isGeneratingIntention}
+              className="p-1 hover:text-primary transition-colors disabled:opacity-50"
+              title="Refresh Intention"
+            >
+              <RefreshCw className={`w-3 h-3 ${isGeneratingIntention ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+          <p className="text-on-surface-variant italic font-light leading-relaxed">"{dailyIntention}"</p>
+        </div>
+
+        <div className="glass-panel p-6 rounded-3xl border border-primary/20 bg-primary/5">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-[10px] uppercase tracking-widest text-primary font-bold">Resonance Analysis</span>
+          </div>
+          
+          {resonanceInsight ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-4"
+            >
+              <p className="text-xs text-on-surface font-medium leading-relaxed italic border-l-2 border-primary/30 pl-3">
+                {resonanceInsight}
+              </p>
+              <button 
+                onClick={() => setResonanceInsight(null)}
+                className="text-[9px] uppercase tracking-widest text-primary font-bold hover:underline"
+              >
+                Clear Insight
+              </button>
+            </motion.div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-[10px] text-on-surface-variant leading-relaxed">
+                Allow the Sanctuary to identify the deeper patterns in our words.
+              </p>
+              <button 
+                onClick={analyzeResonance}
+                disabled={isAnalyzingResonance}
+                className="w-full py-2 rounded-xl bg-primary text-on-primary text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isAnalyzingResonance ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Finding Resonance...
+                  </>
+                ) : (
+                  <>Listen to the Echoes</>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </aside>
     </div>
