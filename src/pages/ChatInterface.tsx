@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Flower, AirVent, Mic, MicOff, Loader2, Ear, Heart, Brain, Smile } from 'lucide-react';
+import { Send, Flower, AirVent, Mic, MicOff, Loader2, Ear, Heart, Brain, Smile, RefreshCw, Sparkles } from 'lucide-react';
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
 import { GoogleGenAI } from "@google/genai";
 
@@ -86,12 +86,15 @@ export default function ChatInterface() {
     setIsGeneratingIntention(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = "Generate a single, poetic, and deeply calming 'Daily Intention' or quote for someone focused on emotional well-being and growth. Use forest, garden, or natural metaphors. Keep it under 25 words.";
+      const prompt = "Generate a single, poetic, and deeply calming 'Daily Intention' or affirmation for someone focused on emotional well-being and growth. Use forest, garden, or natural metaphors. Keep it under 25 words.";
       const response = await ai.models.generateContent({
         model: "gemini-3.1-flash-lite-preview",
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
       });
-      setDailyIntention(response.text || "Bloom where you are planted.");
+      const intention = response.text || "Bloom where you are planted.";
+      setDailyIntention(intention);
+      localStorage.setItem('dailyIntention', intention);
+      localStorage.setItem('dailyIntentionDate', new Date().toDateString());
     } catch (error) {
       console.error("Error generating intention:", error);
     } finally {
@@ -124,7 +127,15 @@ export default function ChatInterface() {
   };
 
   useEffect(() => {
-    generateDailyIntention();
+    const cachedIntention = localStorage.getItem('dailyIntention');
+    const cachedDate = localStorage.getItem('dailyIntentionDate');
+    const today = new Date().toDateString();
+
+    if (cachedIntention && cachedDate === today) {
+      setDailyIntention(cachedIntention);
+    } else {
+      generateDailyIntention();
+    }
   }, []);
 
   const handleSendMessage = async (text: string) => {
