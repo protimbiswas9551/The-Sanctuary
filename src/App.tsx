@@ -11,6 +11,7 @@ import MoodTracker from './pages/MoodTracker';
 import NotesScreen from './pages/NotesScreen';
 import ChatInterface from './pages/ChatInterface';
 import VoiceInterface from './pages/VoiceInterface';
+import Mindfulness from './pages/Mindfulness';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/breathe" element={<Mindfulness />} />
             <Route path="/journal" element={<MoodTracker />} />
             <Route path="/reflect" element={<ChatInterface />} />
             <Route path="/notes" element={<NotesScreen />} />

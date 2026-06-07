@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Ear, Flower2, Brain, Tag, X, Filter, Sparkles, RefreshCw, Loader2, Mic, MicOff, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wind, Image as ImageIcon, Bell, Lightbulb, Flame } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Ear, Flower2, Brain, Tag, X, Filter, Sparkles, RefreshCw, Loader2, Mic, MicOff, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wind, Image as ImageIcon, Bell, Lightbulb, Flame, Download } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
 import BreathingExercise from '../components/BreathingExercise';
@@ -42,6 +43,7 @@ const MOODS = [
 ];
 
 export default function MoodTracker() {
+  const navigate = useNavigate();
   const [entry, setEntry] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -285,6 +287,74 @@ export default function MoodTracker() {
   const filteredEntries = filterTag 
     ? savedEntries.filter(e => e.tags?.includes(filterTag))
     : savedEntries;
+
+  const handleExportJournal = (onlyFiltered = false) => {
+    const entriesToExport = onlyFiltered ? filteredEntries : savedEntries;
+    if (entriesToExport.length === 0) {
+      alert("No journal entries found to export.");
+      return;
+    }
+
+    const todayStr = new Date().toLocaleString('en-GB', { 
+      weekday: 'long', 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    let txtContent = `================================================================================\n`;
+    txtContent += `                    S A N C T U A R Y   J O U R N A L\n`;
+    txtContent += `                         Garden of the Mind\n`;
+    txtContent += `================================================================================\n\n`;
+    txtContent += `Export Date      : ${todayStr}\n`;
+    txtContent += `Reflections Count: ${entriesToExport.length} entry/entries\n`;
+    txtContent += `Current Streak   : ${streak} day(s)\n`;
+    txtContent += `Scope            : ${onlyFiltered ? `Filtered by tag #${filterTag}` : 'All Reflections'}\n`;
+    txtContent += `--------------------------------------------------------------------------------\n\n`;
+
+    entriesToExport.forEach((entry, idx) => {
+      const entryDateTime = new Date(entry.id).toLocaleString('en-GB', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      const moodItem = MOODS.find(m => m.label === entry.mood);
+      const moodEmoji = moodItem ? moodItem.emoji : '🌱';
+
+      txtContent += `Reflection #${entriesToExport.length - idx}\n`;
+      txtContent += `--------------------------------------------------------------------------------\n`;
+      txtContent += `Date  : ${entryDateTime} (${entry.date})\n`;
+      txtContent += `Mood  : ${entry.mood} ${moodEmoji}\n`;
+      if (entry.tags && entry.tags.length > 0) {
+        txtContent += `Tags  : ${entry.tags.map(t => `#${t}`).join(', ')}\n`;
+      }
+      if (entry.reminder) {
+        txtContent += `Reminder: Set for ${new Date(entry.reminder).toLocaleString('en-GB')}\n`;
+      }
+      txtContent += `\nThought:\n`;
+      txtContent += `${entry.text}\n`;
+      txtContent += `--------------------------------------------------------------------------------\n\n\n`;
+    });
+
+    txtContent += `================================================================================\n`;
+    txtContent += `          "The garden does not hurry; yet everything is accomplished."\n`;
+    txtContent += `================================================================================\n`;
+
+    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sanctuary_journal_${onlyFiltered ? 'filtered_' : ''}${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const progressMetrics = React.useMemo(() => {
     if (savedEntries.length === 0) return { calm: 0, clarity: 0 };
@@ -652,20 +722,44 @@ export default function MoodTracker() {
 
         {/* Recent Reflections */}
         <div className="space-y-6">
-          <div className="flex items-center justify-between px-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4">
             <label className="text-secondary text-[10px] uppercase tracking-widest font-bold">Recent Reflections</label>
-            <div className="flex items-center gap-2">
-              <Filter className="w-3 h-3 text-on-surface-variant" />
-              <select 
-                value={filterTag || ''} 
-                onChange={(e) => setFilterTag(e.target.value || null)}
-                className="bg-transparent border-none text-[10px] uppercase tracking-widest font-bold text-on-surface-variant focus:ring-0 cursor-pointer"
-              >
-                <option value="">All Tags</option>
-                {PREDEFINED_TAGS.map(tag => (
-                  <option key={tag} value={tag}>{tag}</option>
-                ))}
-              </select>
+            <div className="flex flex-wrap items-center gap-4">
+              {savedEntries.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleExportJournal(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-highest/50 border border-outline-variant/10 hover:border-primary/30 text-on-surface-variant hover:text-primary transition-all text-xs font-semibold"
+                    title="Export all entries to a txt file"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Export All</span>
+                  </button>
+                  {filterTag && (
+                    <button 
+                      onClick={() => handleExportJournal(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all text-xs font-semibold"
+                      title={`Export only entries tagged with #${filterTag}`}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Export Filtered</span>
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Filter className="w-3 h-3 text-on-surface-variant" />
+                <select 
+                  value={filterTag || ''} 
+                  onChange={(e) => setFilterTag(e.target.value || null)}
+                  className="bg-transparent border-none text-[10px] uppercase tracking-widest font-bold text-on-surface-variant focus:ring-0 cursor-pointer"
+                >
+                  <option value="">All Tags</option>
+                  {PREDEFINED_TAGS.map(tag => (
+                    <option key={tag} value={tag}>{tag}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -899,9 +993,16 @@ export default function MoodTracker() {
           <p className="text-xs text-on-surface-variant mb-6 leading-relaxed text-center">A quick reset to center your focus.</p>
           <button 
             onClick={() => setShowBreathing(true)}
-            className="w-full py-3 rounded-xl bg-surface-container-highest text-on-surface text-xs font-bold uppercase tracking-widest hover:bg-surface-bright transition-colors"
+            className="w-full py-3 rounded-xl bg-surface-container-highest text-on-surface text-xs font-bold uppercase tracking-widest hover:bg-surface-bright transition-colors mb-2"
           >
-            Start Exercise
+            Quick Breath
+          </button>
+          <button 
+            onClick={() => navigate('/breathe')}
+            className="w-full py-3 rounded-xl bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"
+          >
+            <Sparkles className="w-3 h-3" />
+            Mindfulness Center
           </button>
         </div>
 

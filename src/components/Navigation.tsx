@@ -1,10 +1,11 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Wind, BookOpen, Brain, NotebookPen, Flower2, Bell, Settings, User } from 'lucide-react';
+import { Home, BookOpen, Brain, NotebookPen, Flower2, Bell, Settings, Wind } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 const navItems = [
-  { name: 'Breathe', path: '/', icon: Wind },
+  { name: 'Sanctuary', path: '/', icon: Home },
+  { name: 'Breathe', path: '/breathe', icon: Wind },
   { name: 'Journal', path: '/journal', icon: BookOpen },
   { name: 'Reflect', path: '/reflect', icon: Brain },
   { name: 'Notes', path: '/notes', icon: NotebookPen },
